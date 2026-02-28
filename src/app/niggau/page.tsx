@@ -44,6 +44,8 @@ export default function AdminDashboard() {
     const [events, setEvents] = useState<Event[]>([]);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterGroup, setFilterGroup] = useState('All');
+    const [filterEvent, setFilterEvent] = useState('All');
 
     // Loading states
     // Removed unused loading states
@@ -134,17 +136,23 @@ export default function AdminDashboard() {
 
     // --- Search Logic & Computations ---
     const filteredEvents = events.filter(e =>
-        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.model.toLowerCase().includes(searchQuery.toLowerCase())
+        (e.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (e.type || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (e.model || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const filteredParticipants = participants.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.universityCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.group && p.group.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    const filteredParticipants = participants.filter(p => {
+        const matchesGroup = filterGroup === 'All' || p.group === filterGroup;
+        const matchesEvent = filterEvent === 'All' || (p.events || []).includes(filterEvent);
+        const matchesSearch =
+            (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.universityCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.group || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.events || []).some(ev => (ev || '').toLowerCase().includes(searchQuery.toLowerCase()));
+
+        return matchesGroup && matchesEvent && matchesSearch;
+    });
 
     // --- PDF Export Logic ---
     const exportToPDF = () => {
@@ -177,6 +185,33 @@ export default function AdminDashboard() {
                 ]),
             });
             doc.save("dextra_participants_report.pdf");
+        }
+    };
+
+    const exportToExcel = () => {
+        if (activeTab === 'events') {
+            const data = filteredEvents.map(e => ({
+                Title: e.title,
+                Model: e.model,
+                Type: e.type,
+                Registrations: participants.filter(p => p.events?.includes(e.title)).length
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Events");
+            XLSX.writeFile(workbook, "dextra_filtered_events.xlsx");
+        } else {
+            const data = filteredParticipants.map(p => ({
+                Name: p.name,
+                Email: p.email,
+                UniversityCode: p.universityCode,
+                Group: p.group || 'N/A',
+                Events: (p.events || []).join(", ")
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Participants");
+            XLSX.writeFile(workbook, "dextra_filtered_participants.xlsx");
         }
     };
 
@@ -288,7 +323,14 @@ export default function AdminDashboard() {
                                     className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-accent-gold text-black transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-white"
                                 >
                                     <span className="material-symbols-outlined mr-2 text-[16px]">picture_as_pdf</span>
-                                    Export PDF
+                                    PDF
+                                </button>
+                                <button
+                                    onClick={exportToExcel}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-green-600 text-white transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-green-700"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">table_view</span>
+                                    Excel
                                 </button>
                                 <input
                                     type="file"
@@ -411,7 +453,7 @@ export default function AdminDashboard() {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center text-accent-gold font-bold">
-                                                    {participants.filter(p => p.events.includes(event.title)).length}
+                                                    {participants.filter(p => p.events?.includes(event.title)).length}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <button
@@ -445,20 +487,54 @@ export default function AdminDashboard() {
                                 <h1 className="text-3xl font-display font-medium text-white mb-2">Registered Participants</h1>
                                 <p className="text-white/50 text-sm font-sans">View and manage all incoming registrations.</p>
                             </div>
-                            <div className="flex flex-wrap gap-4">
+                            <div className="flex flex-wrap gap-4 items-center">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">House</span>
+                                    <select
+                                        value={filterGroup}
+                                        onChange={(e) => setFilterGroup(e.target.value)}
+                                        className="h-10 px-3 bg-[#181611] border border-white/20 text-white text-xs focus:border-accent-gold"
+                                    >
+                                        <option value="All">All Houses</option>
+                                        <option value="AGNI">AGNI</option>
+                                        <option value="ASTRA">ASTRA</option>
+                                        <option value="VAJRA">VAJRA</option>
+                                        <option value="RUDRA">RUDRA</option>
+                                    </select>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Event</span>
+                                    <select
+                                        value={filterEvent}
+                                        onChange={(e) => setFilterEvent(e.target.value)}
+                                        className="h-10 px-3 bg-[#181611] border border-white/20 text-white text-xs focus:border-accent-gold max-w-[200px]"
+                                    >
+                                        <option value="All">All Events</option>
+                                        {events.map(ev => (
+                                            <option key={ev.id} value={ev.title}>{ev.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <input
                                     type="text"
-                                    placeholder="Search participants or groups..."
+                                    placeholder="Search details..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs"
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs min-w-[200px]"
                                 />
                                 <button
                                     onClick={exportToPDF}
                                     className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-accent-gold text-black transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-white"
                                 >
                                     <span className="material-symbols-outlined mr-2 text-[16px]">picture_as_pdf</span>
-                                    Export PDF
+                                    PDF
+                                </button>
+                                <button
+                                    onClick={exportToExcel}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-green-600 text-white transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-green-700"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">table_view</span>
+                                    Excel
                                 </button>
                             </div>
                         </div>
@@ -500,7 +576,7 @@ export default function AdminDashboard() {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-wrap gap-2">
-                                                        {participant.events.map(ev => (
+                                                        {(participant.events || []).map(ev => (
                                                             <span key={ev} className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] whitespace-nowrap">
                                                                 {ev}
                                                             </span>
