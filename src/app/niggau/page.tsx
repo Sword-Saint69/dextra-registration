@@ -5,6 +5,8 @@ import { motion, AnimatePresence, Easing } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // --- Types ---
 type EventModel = 'Individual' | 'Group';
@@ -41,6 +43,7 @@ export default function AdminDashboard() {
     // State
     const [events, setEvents] = useState<Event[]>([]);
     const [participants, setParticipants] = useState<Participant[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Loading states
     // Removed unused loading states
@@ -126,6 +129,54 @@ export default function AdminDashboard() {
             await deleteDoc(doc(db, 'participants', id));
         } catch (error) {
             console.error("Error deleting participant:", error);
+        }
+    };
+
+    // --- Search Logic & Computations ---
+    const filteredEvents = events.filter(e =>
+        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.model.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const filteredParticipants = participants.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.universityCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.group && p.group.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    // --- PDF Export Logic ---
+    const exportToPDF = () => {
+        const doc = new jsPDF();
+
+        if (activeTab === 'events') {
+            doc.text("DEXTRA 2026 - Events Directory", 14, 20);
+            autoTable(doc, {
+                startY: 25,
+                head: [['Title', 'Model', 'Type', 'Registrations']],
+                body: filteredEvents.map(e => [
+                    e.title,
+                    e.model,
+                    e.type,
+                    participants.filter(p => p.events.includes(e.title)).length.toString()
+                ]),
+            });
+            doc.save("dextra_events_report.pdf");
+        } else {
+            doc.text("DEXTRA 2026 - Participant Directory", 14, 20);
+            autoTable(doc, {
+                startY: 25,
+                head: [['Name', 'Contact', 'Code', 'Group', 'Events']],
+                body: filteredParticipants.map(p => [
+                    p.name,
+                    p.email,
+                    p.universityCode,
+                    p.group || 'N/A',
+                    p.events.join(", ")
+                ]),
+            });
+            doc.save("dextra_participants_report.pdf");
         }
     };
 
@@ -219,12 +270,26 @@ export default function AdminDashboard() {
                 {activeTab === 'events' && (
                     <motion.div key="events-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-8">
 
-                        <div className="flex justify-between items-end">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                             <div>
                                 <h1 className="text-3xl font-display font-medium text-white mb-2">Event Directory</h1>
                                 <p className="text-white/50 text-sm font-sans">Organize and structure the festival activities.</p>
                             </div>
-                            <div className="flex gap-4">
+                            <div className="flex flex-wrap gap-4">
+                                <input
+                                    type="text"
+                                    placeholder="Search events..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs"
+                                />
+                                <button
+                                    onClick={exportToPDF}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-accent-gold text-black transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-white"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">picture_as_pdf</span>
+                                    Export PDF
+                                </button>
                                 <input
                                     type="file"
                                     ref={fileInputRef}
@@ -326,7 +391,7 @@ export default function AdminDashboard() {
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     <AnimatePresence>
-                                        {events.map((event) => (
+                                        {filteredEvents.map((event) => (
                                             <motion.tr
                                                 key={event.id}
                                                 initial={{ opacity: 0 }}
@@ -345,7 +410,9 @@ export default function AdminDashboard() {
                                                         {event.type}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-center text-accent-gold font-bold">{event.registrationsCount}</td>
+                                                <td className="px-6 py-4 text-center text-accent-gold font-bold">
+                                                    {participants.filter(p => p.events.includes(event.title)).length}
+                                                </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <button
                                                         onClick={() => handleDeleteEvent(event.id)}
@@ -357,7 +424,7 @@ export default function AdminDashboard() {
                                                 </td>
                                             </motion.tr>
                                         ))}
-                                        {events.length === 0 && (
+                                        {filteredEvents.length === 0 && (
                                             <tr>
                                                 <td colSpan={5} className="px-6 py-12 text-center text-white/40 italic">No events generated yet.</td>
                                             </tr>
@@ -373,10 +440,26 @@ export default function AdminDashboard() {
                 {/* PARTICIPANTS VIEW */}
                 {activeTab === 'participants' && (
                     <motion.div key="participants-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-8">
-                        <div className="flex justify-between items-end">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                             <div>
                                 <h1 className="text-3xl font-display font-medium text-white mb-2">Registered Participants</h1>
                                 <p className="text-white/50 text-sm font-sans">View and manage all incoming registrations.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-4">
+                                <input
+                                    type="text"
+                                    placeholder="Search participants or groups..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs"
+                                />
+                                <button
+                                    onClick={exportToPDF}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-accent-gold text-black transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-white"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">picture_as_pdf</span>
+                                    Export PDF
+                                </button>
                             </div>
                         </div>
 
@@ -393,7 +476,7 @@ export default function AdminDashboard() {
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
                                     <AnimatePresence>
-                                        {participants.map((participant) => (
+                                        {filteredParticipants.map((participant) => (
                                             <motion.tr
                                                 key={participant.id}
                                                 initial={{ opacity: 0 }}

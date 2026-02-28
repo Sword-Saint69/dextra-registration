@@ -50,7 +50,7 @@ const navReveal = {
 };
 
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, query } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, query, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface EventData {
@@ -119,6 +119,19 @@ export default function Register() {
                 events: formData.selectedEvents,
                 timestamp: new Date()
             });
+
+            // Increment registrationsCount for each selected event
+            const updatePromises = formData.selectedEvents.map(eventTitle => {
+                const eventDoc = availableEvents.find(e => e.title === eventTitle);
+                if (eventDoc) {
+                    const eventRef = doc(db, 'events', eventDoc.id);
+                    return updateDoc(eventRef, {
+                        registrationsCount: increment(1)
+                    });
+                }
+                return Promise.resolve();
+            });
+            await Promise.all(updatePromises);
 
             setIsSuccess(true);
         } catch (error) {

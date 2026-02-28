@@ -161,7 +161,7 @@ export default function Home() {
           </div>
 
           {/* Left Content: Deep Charcoal */}
-          <div className="w-full lg:w-1/2 bg-[#121212] flex flex-col justify-center px-6 py-12 md:px-16 lg:px-24 xl:px-32 relative z-10 order-2 lg:order-1">
+          <div className="w-full lg:w-1/2 bg-[#121212] flex flex-col justify-center px-6 py-12 lg:py-0 md:px-16 lg:px-24 xl:px-32 relative z-10">
             <motion.div
               className="max-w-xl"
               variants={getStaggerContainer(animDelay)}
@@ -175,7 +175,7 @@ export default function Home() {
                 DEXTRA Arts Fest
               </motion.span>
 
-              <h1 className="text-white font-display text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] mb-6 flex flex-col">
+              <h1 className="text-white font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] mb-6 flex flex-col">
                 <motion.span variants={headingLine} className="block overflow-hidden pb-2">Different Paths.</motion.span>
                 <motion.span variants={headingLine} className="block overflow-hidden relative w-fit">
                   {/* Shimmer implementation */}
@@ -228,7 +228,7 @@ export default function Home() {
           </div>
 
           {/* Right Visual: Gradient Red to Gold */}
-          <div className="w-full lg:w-1/2 bg-[#A11217] relative overflow-hidden flex items-center justify-center min-h-[400px] lg:min-h-full order-1 lg:order-2">
+          <div className="w-full lg:w-1/2 bg-[#A11217] relative overflow-hidden flex items-center justify-center min-h-[300px] sm:min-h-[400px] lg:min-h-full">
             <motion.div
               className="absolute inset-0 origin-center"
               initial={{ scale: 1.05, opacity: 0 }}
