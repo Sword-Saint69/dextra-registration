@@ -216,16 +216,9 @@ export default function Home() {
 
               <div className="flex flex-wrap gap-4">
                 <motion.div variants={fadeUp} custom={1}>
-                  <button className="group flex min-w-[140px] cursor-pointer items-center justify-center rounded-none border border-accent-gold h-12 px-6 bg-accent-gold text-[#121212] hover:bg-[#a6884d] hover:shadow-[0_0_20px_rgba(198,166,100,0.2)] transition-all duration-300 text-sm font-bold tracking-wider uppercase">
-                    <span className="truncate">Explore Events</span>
+                  <Link href="/register" className="group flex min-w-[140px] cursor-pointer items-center justify-center rounded-none border border-accent-gold h-12 px-6 bg-accent-gold text-[#121212] hover:bg-[#a6884d] hover:shadow-[0_0_20px_rgba(198,166,100,0.2)] transition-all duration-300 text-sm font-bold tracking-wider uppercase">
+                    <span className="truncate">Register Events</span>
                     <span className="material-symbols-outlined ml-2 text-sm transition-transform duration-300 group-hover:translate-x-1">arrow_forward</span>
-                  </button>
-                </motion.div>
-                <motion.div variants={fadeUp} custom={2}>
-                  <Link href="/register" className="group relative flex min-w-[140px] cursor-pointer items-center justify-center overflow-hidden rounded-none border border-white/20 h-12 px-6 bg-transparent text-white hover:border-accent-gold hover:text-accent-gold transition-all duration-300 text-sm font-bold tracking-wider uppercase hover:shadow-[0_0_15px_rgba(198,166,100,0.15)]">
-                    {/* Glow border animation trick */}
-                    <span className="absolute inset-0 border border-accent-gold opacity-0 scale-105 group-hover:opacity-100 group-hover:scale-100 transition-all duration-500"></span>
-                    <span className="relative z-10 truncate group-hover:bg-white/5 w-full h-full flex items-center justify-center transition-colors">Get Tickets</span>
                   </Link>
                 </motion.div>
               </div>
