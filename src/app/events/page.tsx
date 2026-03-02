@@ -1,8 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence, Easing } from 'framer-motion';
+import { motion, AnimatePresence, Easing, Variants } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Navbar from '@/components/Navbar';
@@ -24,7 +23,7 @@ interface Event {
 }
 
 // Animation Variants
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { y: 20, opacity: 0 },
     show: {
         y: 0,

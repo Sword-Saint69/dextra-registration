@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Easing, Variants } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Magnetic from './Magnetic';
 
 // Luxury Easing
-const luxuryEase = [0.22, 1, 0.36, 1];
+const luxuryEase: Easing = [0.22, 1, 0.36, 1];
 
-const navReveal = {
+const navReveal: Variants = {
     hidden: { y: -20, opacity: 0, filter: "blur(4px)" },
     show: {
         y: 0,
@@ -19,7 +19,7 @@ const navReveal = {
     }
 };
 
-const mobileMenuVariants = {
+const mobileMenuVariants: Variants = {
     closed: {
         opacity: 0,
         y: -10,
@@ -40,7 +40,7 @@ const mobileMenuVariants = {
     }
 };
 
-const mobileItemVariants = {
+const mobileItemVariants: Variants = {
     closed: { x: -20, opacity: 0 },
     open: { x: 0, opacity: 1, transition: { duration: 0.4, ease: luxuryEase } }
 };

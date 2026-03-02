@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, Easing } from 'framer-motion';
+import { motion, useScroll, useTransform, Easing, Variants } from 'framer-motion';
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import RedThread from '@/components/RedThread';
@@ -12,7 +12,7 @@ import { db } from '@/lib/firebase';
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
 
 // Animation Variants for Timeline 1.5s - 2.5s
-const staggerContainer = {
+const staggerContainer: Variants = {
     hidden: { opacity: 0 },
     show: {
         opacity: 1,
@@ -23,7 +23,7 @@ const staggerContainer = {
     }
 };
 
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { y: 20, opacity: 0 },
     show: {
         y: 0,
@@ -32,7 +32,7 @@ const fadeUp = {
     }
 };
 
-const headingLine = {
+const headingLine: Variants = {
     hidden: { y: 40, opacity: 0, filter: "blur(8px)" },
     show: {
         y: 0,

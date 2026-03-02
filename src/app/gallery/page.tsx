@@ -1,8 +1,7 @@
 "use client";
 
-import { motion, AnimatePresence, Easing } from 'framer-motion';
+import { motion, AnimatePresence, Easing, Variants } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import CustomCursor from '@/components/CustomCursor';
 import Magnetic from '@/components/Magnetic';
@@ -14,7 +13,7 @@ import { collection, query, orderBy, onSnapshot, limit, startAfter, getDocs, Que
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
 
 // Animation Variants
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { y: 20, opacity: 0 },
     show: {
         y: 0,

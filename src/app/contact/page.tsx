@@ -1,8 +1,7 @@
 "use client";
 
-import { motion, Easing } from 'framer-motion';
+import { motion, Easing, Variants } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import CustomCursor from '@/components/CustomCursor';
 import Navbar from '@/components/Navbar';
 
@@ -10,7 +9,7 @@ import Navbar from '@/components/Navbar';
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
 
 // Animation Variants
-const fadeUp = {
+const fadeUp: Variants = {
     hidden: { y: 20, opacity: 0 },
     show: {
         y: 0,
@@ -19,7 +18,7 @@ const fadeUp = {
     }
 };
 
-const headingVariant = {
+const headingVariant: Variants = {
     hidden: { y: 50, opacity: 0, filter: "blur(8px)" },
     show: {
         y: 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, Easing } from 'framer-motion';
+import { motion, useScroll, useTransform, Easing, Variants } from 'framer-motion';
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
@@ -22,7 +22,7 @@ const getStaggerContainer = (delay: number) => ({
   }
 });
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { y: 20, opacity: 0 },
   show: {
     y: 0,
@@ -31,7 +31,7 @@ const fadeUp = {
   }
 };
 
-const headingLine = {
+const headingLine: Variants = {
   hidden: { y: 60, opacity: 0, filter: "blur(8px)" },
   show: {
     y: 0,
