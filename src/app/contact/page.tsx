@@ -4,8 +4,7 @@ import { motion, Easing } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import CustomCursor from '@/components/CustomCursor';
-import Magnetic from '@/components/Magnetic';
-import { db } from '@/lib/firebase';
+import Navbar from '@/components/Navbar';
 
 // Custom Easing (Luxury Ease)
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
@@ -19,16 +18,6 @@ const fadeUp = {
         transition: { duration: 0.8, ease: luxuryEase }
     }
 };
-
-const getNavReveal = (delay: number) => ({
-    hidden: { y: -20, opacity: 0, filter: "blur(4px)" },
-    show: {
-        y: 0,
-        opacity: 1,
-        filter: "blur(0px)",
-        transition: { duration: 0.8, ease: luxuryEase, delay }
-    }
-});
 
 const headingVariant = {
     hidden: { y: 50, opacity: 0, filter: "blur(8px)" },
@@ -45,7 +34,6 @@ const headingVariant = {
 
 export default function ContactPage() {
     const [isReady, setIsReady] = useState(false);
-    const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
         // Check if loader has run
@@ -54,70 +42,15 @@ export default function ContactPage() {
 
         const timer = setTimeout(() => setIsReady(true), delay);
 
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 20);
-        };
-
-        window.addEventListener('scroll', handleScroll);
         return () => {
             clearTimeout(timer);
-            window.removeEventListener('scroll', handleScroll);
         };
     }, []);
 
     return (
         <div className="bg-background-dark min-h-screen flex flex-col overflow-x-hidden text-slate-100 selection:bg-accent-gold/30">
             <CustomCursor />
-
-            <motion.header
-                initial={{ y: -100 }}
-                animate={{ y: 0 }}
-                transition={{ duration: 0.8, ease: luxuryEase }}
-                className={`sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-white/10 transition-all duration-500 px-6 py-4 md:px-10 ${scrolled ? 'bg-[#121212]/90 backdrop-blur-md py-3' : 'bg-transparent py-5'
-                    }`}
-            >
-                <div className="flex items-center gap-4 text-white">
-                    {/* Logo Removed */}
-                    <div className="flex items-center justify-center size-8"></div>
-                </div>
-
-                <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
-                    <nav className="flex items-center gap-8">
-                        {['Home', 'Events', 'Gallery', 'Certificates', 'Contact'].map((item, i) => (
-                            <motion.div
-                                key={item}
-                                initial="hidden"
-                                animate={isReady ? "show" : "hidden"}
-                                variants={getNavReveal(0.1 + (i * 0.1))}
-                            >
-                                <Link
-                                    href={
-                                        item === 'Home' ? '/' :
-                                            item === 'Events' ? '/events' :
-                                                item === 'Gallery' ? '/gallery' :
-                                                    item === 'Certificates' ? '/certificates' :
-                                                        item === 'Contact' ? '/contact' : '#'
-                                    }
-                                    className={`group relative transition-colors text-sm font-medium leading-normal ${item === 'Contact' ? 'text-accent-gold' : 'text-white/80 hover:text-white'
-                                        }`}
-                                >
-                                    {item}
-                                </Link>
-                            </motion.div>
-                        ))}
-                    </nav>
-                    <Magnetic>
-                        <Link href="/register" className="group relative flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden border border-accent-gold h-10 px-6 bg-transparent text-accent-gold hover:text-[#121212] transition-all duration-500 text-sm font-bold leading-normal tracking-[0.015em] hover:shadow-[0_0_15px_rgba(198,166,100,0.3)]">
-                            <span className="absolute inset-0 bg-accent-gold -translate-x-full transition-transform duration-500 ease-in-out group-hover:translate-x-0"></span>
-                            <span className="relative z-10 truncate">Register Now</span>
-                        </Link>
-                    </Magnetic>
-                </div>
-
-                <button className="md:hidden text-white">
-                    <span className="material-symbols-outlined">menu</span>
-                </button>
-            </motion.header>
+            <Navbar />
 
             <motion.main
                 initial={{ opacity: 0, y: 30 }}
