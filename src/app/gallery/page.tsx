@@ -3,6 +3,7 @@
 import { motion, AnimatePresence, Easing } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 import CustomCursor from '@/components/CustomCursor';
 import Magnetic from '@/components/Magnetic';
 import { CldImage } from 'next-cloudinary';
@@ -22,16 +23,6 @@ const fadeUp = {
     }
 };
 
-const getNavReveal = (delay: number) => ({
-    hidden: { y: -20, opacity: 0, filter: "blur(4px)" },
-    show: {
-        y: 0,
-        opacity: 1,
-        filter: "blur(0px)",
-        transition: { duration: 0.8, ease: luxuryEase, delay }
-    }
-});
-
 interface GalleryItem {
     id: string;
     category: string;
@@ -42,7 +33,6 @@ interface GalleryItem {
 
 export default function GalleryPage() {
     const [isReady, setIsReady] = useState(false);
-    const [scrolled, setScrolled] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All');
     const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
     const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -82,9 +72,6 @@ export default function GalleryPage() {
         const delay = hasRun ? 100 : 3000;
         const timer = setTimeout(() => setIsReady(true), delay);
 
-        const handleScroll = () => setScrolled(window.scrollY > 20);
-        window.addEventListener('scroll', handleScroll);
-
         // Fetch based on activeFilter
         let q = query(collection(db, 'media'), orderBy('timestamp', 'desc'), limit(ITEMS_PER_PAGE));
         if (activeFilter !== 'All') {
@@ -111,7 +98,6 @@ export default function GalleryPage() {
 
         return () => {
             clearTimeout(timer);
-            window.removeEventListener('scroll', handleScroll);
             unsubscribe();
         };
     }, [activeFilter]);
@@ -153,50 +139,7 @@ export default function GalleryPage() {
     return (
         <div className="bg-background-dark min-h-screen flex flex-col overflow-x-hidden text-slate-100 selection:bg-accent-gold/30">
             <CustomCursor />
-
-            <motion.header
-                initial={{ y: -100 }}
-                animate={{ y: 0 }}
-                transition={{ duration: 0.8, ease: luxuryEase }}
-                className={`sticky top-0 z-50 flex items-center justify-between border-b border-white/10 transition-all duration-500 px-6 py-4 md:px-10 ${scrolled ? 'bg-[#121212]/95 backdrop-blur-md py-3' : 'bg-transparent py-5'}`}
-            >
-                <div className="flex items-center gap-4 text-white">
-                    {/* Logo Removed */}
-                    <div className="flex items-center justify-center size-8"></div>
-                </div>
-
-                <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
-                    <nav className="flex items-center gap-8">
-                        {['Home', 'Events', 'Gallery', 'Certificates', 'Contact'].map((item, i) => (
-                            <motion.div
-                                key={item}
-                                initial="hidden"
-                                animate={isReady ? "show" : "hidden"}
-                                variants={getNavReveal(0.1 + (i * 0.1))}
-                            >
-                                <Link
-                                    href={
-                                        item === 'Home' ? '/' :
-                                            item === 'Events' ? '/events' :
-                                                item === 'Gallery' ? '/gallery' :
-                                                    item === 'Certificates' ? '/certificates' :
-                                                        item === 'Contact' ? '/contact' : '#'
-                                    }
-                                    className={`group relative transition-colors text-sm font-medium leading-normal ${item === 'Gallery' ? 'text-accent-gold' : 'text-white/80 hover:text-white'}`}
-                                >
-                                    {item}
-                                </Link>
-                            </motion.div>
-                        ))}
-                    </nav>
-                    <Magnetic>
-                        <button className="group relative flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden border border-accent-gold h-10 px-6 bg-transparent text-accent-gold hover:text-[#121212] transition-all duration-500 text-sm font-bold leading-normal tracking-[0.015em] hover:shadow-[0_0_15px_rgba(198,166,100,0.3)]">
-                            <span className="absolute inset-0 bg-accent-gold -translate-x-full transition-transform duration-500 ease-in-out group-hover:translate-x-0"></span>
-                            <span className="relative z-10 truncate">Register Now</span>
-                        </button>
-                    </Magnetic>
-                </div>
-            </motion.header>
+            <Navbar />
 
             <motion.main
                 initial={{ opacity: 0, y: 30 }}

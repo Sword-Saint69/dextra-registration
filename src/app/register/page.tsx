@@ -1,9 +1,12 @@
 "use client";
 
 import { motion, useScroll, useTransform, Easing } from 'framer-motion';
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import RedThread from '@/components/RedThread';
+import Navbar from '@/components/Navbar';
+import { collection, onSnapshot, addDoc, query, doc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 // Custom Easing (Luxury Ease)
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
@@ -39,20 +42,6 @@ const headingLine = {
     }
 };
 
-const navReveal = {
-    hidden: { y: -20, opacity: 0, filter: "blur(4px)" },
-    show: {
-        y: 0,
-        opacity: 1,
-        filter: "blur(0px)",
-        transition: { duration: 0.6, ease: luxuryEase }
-    }
-};
-
-import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, query, doc, updateDoc, increment } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-
 interface EventData {
     id: string;
     title: string;
@@ -76,9 +65,9 @@ export default function Register() {
         name: '',
         email: '',
         phone: '',
-        group: '', // Added group selection
-        universityCode: '', // Replaced college
-        selectedEvents: [] as string[] // Replaced category with array
+        group: '',
+        universityCode: '',
+        selectedEvents: [] as string[]
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,7 +103,7 @@ export default function Register() {
                 name: formData.name,
                 email: formData.email,
                 phone: formData.phone,
-                group: formData.group, // Added to payload
+                group: formData.group,
                 universityCode: formData.universityCode,
                 events: formData.selectedEvents,
                 timestamp: new Date()
@@ -172,43 +161,7 @@ export default function Register() {
 
     return (
         <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
-            {/* Navbar */}
-            <motion.header
-                variants={navReveal}
-                initial="hidden"
-                animate="show"
-                className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-white/10 bg-[#121212]/90 backdrop-blur-md px-6 py-4 md:px-10"
-            >
-                <div className="flex items-center gap-4 text-white group relative">
-                    {/* Logo Removed */}
-                    <div className="flex items-center justify-center size-8"></div>
-                </div>
-
-                <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
-                    <nav className="flex items-center gap-8">
-                        {['Home', 'Events', 'Gallery', 'Certificates', 'Contact'].map((item) => (
-                            <Link
-                                key={item}
-                                href={
-                                    item === 'Home' ? '/' :
-                                        item === 'Events' ? '/events' :
-                                            item === 'Gallery' ? '/gallery' :
-                                                item === 'Certificates' ? '/certificates' :
-                                                    item === 'Contact' ? '/contact' : '#'
-                                }
-                                className={`group relative transition-colors text-sm font-medium leading-normal ${item === 'Events' ? 'text-accent-gold' : 'text-white/80 hover:text-white'}`}
-                            >
-                                {item}
-                            </Link>
-                        ))}
-                    </nav>
-                </div>
-
-                {/* Mobile Menu Icon */}
-                <button className="md:hidden text-white">
-                    <span className="material-symbols-outlined">menu</span>
-                </button>
-            </motion.header>
+            <Navbar />
 
             {/* Main Content */}
             <main ref={heroRef} className="flex-1 flex flex-col lg:flex-row">
@@ -219,7 +172,7 @@ export default function Register() {
                         className="absolute inset-0 origin-center"
                         initial={{ scale: 1.05, opacity: 0 }}
                         animate={{
-                            scale: [1, 1.01, 1], // Breathing loop
+                            scale: [1, 1.01, 1],
                             opacity: 1
                         }}
                         transition={{

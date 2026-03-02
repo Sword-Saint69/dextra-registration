@@ -3,6 +3,7 @@
 import { motion, useScroll, useTransform, Easing } from 'framer-motion';
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
 import CustomCursor from '@/components/CustomCursor';
 import Magnetic from '@/components/Magnetic';
 
@@ -39,16 +40,6 @@ const headingLine = {
     transition: { duration: 1.0, ease: luxuryEase }
   }
 };
-
-const getNavReveal = (delay: number) => ({
-  hidden: { y: -20, opacity: 0, filter: "blur(4px)" },
-  show: {
-    y: 0,
-    opacity: 1,
-    filter: "blur(0px)",
-    transition: { duration: 0.6, ease: luxuryEase, delay }
-  }
-});
 
 // Interface for particle initial states
 interface ParticleState {
@@ -111,53 +102,7 @@ export default function Home() {
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
       {/* Navbar */}
-      <motion.header
-        variants={getNavReveal(animDelay)}
-        initial="hidden"
-        animate={isReady ? "show" : "hidden"}
-        className={`fixed top-0 z-50 w-full flex items-center justify-between whitespace-nowrap px-6 py-4 md:px-10 transition-all duration-500 ${scrolled ? "bg-[#121212]/80 backdrop-blur-xl border-b border-white/10 py-3" : "bg-transparent border-b border-transparent"
-          }`}
-      >
-        <div className="flex items-center gap-4 text-white">
-          {/* Logo Removed */}
-          <div className="flex items-center justify-center size-8"></div>
-        </div>
-        <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
-          <nav className="flex items-center gap-8">
-            {['Home', 'Events', 'Gallery', 'Certificates', 'Contact'].map((item, i) => (
-              <motion.div
-                key={item}
-                initial="hidden"
-                animate={isReady ? "show" : "hidden"}
-                variants={getNavReveal(animDelay + (i * 0.1))}
-              >
-                <Link
-                  href={
-                    item === 'Home' ? '/' :
-                      item === 'Events' ? '/events' :
-                        item === 'Gallery' ? '/gallery' :
-                          item === 'Certificates' ? '/certificates' :
-                            item === 'Contact' ? '/contact' : '#'
-                  }
-                  className="group relative text-white/80 transition-colors text-sm font-medium leading-normal hover:text-white"
-                >
-                  {item}
-                </Link>
-              </motion.div>
-            ))}
-          </nav>
-          <Magnetic>
-            <Link href="/register" className="group relative flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-none border border-accent-gold h-10 px-6 bg-transparent text-accent-gold hover:text-[#121212] transition-all duration-500 text-sm font-bold leading-normal tracking-[0.015em] hover:shadow-[0_0_15px_rgba(198,166,100,0.3)]">
-              <span className="absolute inset-0 bg-accent-gold -translate-x-full transition-transform duration-500 ease-in-out group-hover:translate-x-0"></span>
-              <span className="relative z-10 truncate transition-colors duration-300">Register Now</span>
-            </Link>
-          </Magnetic>
-        </div>
-        {/* Mobile Menu Icon */}
-        <button className="md:hidden text-white">
-          <span className="material-symbols-outlined">menu</span>
-        </button>
-      </motion.header>
+      <Navbar />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col pt-[73px]">
