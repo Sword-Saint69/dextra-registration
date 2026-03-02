@@ -24,7 +24,7 @@ export default function RedThread() {
                         <stop offset="100%" stopColor="#eebd2b" stopOpacity="0.8" />
                     </linearGradient>
                     <filter id="glow-large" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="30" result="coloredBlur" />
+                        <feGaussianBlur stdDeviation="20" result="coloredBlur" />
                         <feMerge>
                             <feMergeNode in="coloredBlur" />
                             <feMergeNode in="SourceGraphic" />
@@ -40,16 +40,17 @@ export default function RedThread() {
                 </defs>
 
                 <motion.g
-                    initial={{ y: 0, x: 0 }}
+                    initial={{ y: 0, x: 0, rotate: 0 }}
                     animate={{
-                        y: [0, -15, 0],
-                        x: [0, 8, 0]
+                        y: [0, -12, 6, 0],
+                        x: [0, 6, -4, 0],
+                        rotate: [0, 0.2, -0.2, 0]
                     }}
                     transition={{
                         repeat: Infinity,
-                        duration: 6,
+                        duration: 9,
                         ease: "easeInOut",
-                        delay: 2.5 // Start floating after drawing
+                        delay: 2.8 // Start floating after drawing
                     }}
                 >
                     {/* Large glow */}
@@ -62,7 +63,7 @@ export default function RedThread() {
                         className="mix-blend-screen opacity-30"
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
-                        transition={{ duration: 2.5, ease: luxuryEase, delay: 0.2 }}
+                        transition={{ duration: 2.8, ease: luxuryEase, delay: 0.4 }}
                     />
 
                     {/* Medium glow */}
@@ -75,7 +76,7 @@ export default function RedThread() {
                         className="mix-blend-screen opacity-60"
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
-                        transition={{ duration: 2.0, ease: luxuryEase, delay: 0.1 }}
+                        transition={{ duration: 2.2, ease: luxuryEase, delay: 0.2 }}
                     />
 
                     {/* Core thread */}
@@ -87,7 +88,7 @@ export default function RedThread() {
                         className="mix-blend-screen opacity-90"
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
-                        transition={{ duration: 1.8, ease: luxuryEase }}
+                        transition={{ duration: 1.6, ease: luxuryEase }}
                     />
                 </motion.g>
             </motion.svg>

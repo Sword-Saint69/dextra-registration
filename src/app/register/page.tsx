@@ -179,21 +179,27 @@ export default function Register() {
                 animate="show"
                 className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-white/10 bg-[#121212]/90 backdrop-blur-md px-6 py-4 md:px-10"
             >
-                <Link href="/" className="flex items-center gap-4 text-white group relative">
-                    <h2 className="text-white text-xl font-bold leading-tight tracking-[-0.015em] font-display">DEXTRA 2026</h2>
-                </Link>
+                <div className="flex items-center gap-4 text-white group relative">
+                    {/* Logo Removed */}
+                    <div className="flex items-center justify-center size-8"></div>
+                </div>
 
                 <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
                     <nav className="flex items-center gap-8">
-                        <Link href="/" className="group relative text-white/80 transition-colors text-sm font-medium leading-normal hover:text-white">
-                            Home
-                            <span className="absolute -bottom-1 left-1/2 w-0 h-px bg-accent-gold transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
-                        </Link>
-                        {['Events', 'Gallery'].map((item) => (
-                            <a key={item} href="#" className="group relative text-white/80 transition-colors text-sm font-medium leading-normal hover:text-white">
+                        {['Home', 'Events', 'Gallery', 'Certificates', 'Contact'].map((item) => (
+                            <Link
+                                key={item}
+                                href={
+                                    item === 'Home' ? '/' :
+                                        item === 'Events' ? '/events' :
+                                            item === 'Gallery' ? '/gallery' :
+                                                item === 'Certificates' ? '/certificates' :
+                                                    item === 'Contact' ? '/contact' : '#'
+                                }
+                                className={`group relative transition-colors text-sm font-medium leading-normal ${item === 'Events' ? 'text-accent-gold' : 'text-white/80 hover:text-white'}`}
+                            >
                                 {item}
-                                <span className="absolute -bottom-1 left-1/2 w-0 h-px bg-accent-gold transition-all duration-300 group-hover:w-full group-hover:left-0"></span>
-                            </a>
+                            </Link>
                         ))}
                     </nav>
                 </div>
@@ -445,8 +451,8 @@ export default function Register() {
             {/* Footer */}
             <footer className="bg-[#0f0e0b] border-t border-white/10 px-6 py-8">
                 <div className="container mx-auto max-w-[1200px] flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="flex items-center gap-2 text-white opacity-80">
-                        <span className="font-display font-bold text-lg tracking-wide">DEXTRA 2026</span>
+                    <div className="flex items-center gap-2 text-white opacity-40">
+                        {/* Logo Removed */}
                     </div>
                     <div className="flex flex-wrap justify-center gap-6 text-[10px] uppercase tracking-widest font-bold">
                         <a className="text-white/40 hover:text-accent-gold transition-colors" href="#">Privacy</a>

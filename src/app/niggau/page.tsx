@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Easing } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, query } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, query, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -12,12 +12,27 @@ import autoTable from 'jspdf-autotable';
 type EventModel = 'Individual' | 'Group';
 type EventType = 'Onstage' | 'Offstage';
 
+interface MediaAsset {
+    id: string;
+    publicId: string;
+    url: string;
+    title: string;
+    category: string;
+    size: 'square' | 'tall' | 'wide';
+    timestamp: string;
+    image?: string; // Fallback for older documents
+}
+
 interface Event {
     id: string;
     title: string;
     model: EventModel;
     type: EventType;
     registrationsCount: number;
+    time?: string;
+    endTime?: string;
+    description?: string;
+    location?: string;
 }
 
 interface Participant {
@@ -38,17 +53,19 @@ const fadeUp = {
 };
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<'events' | 'participants'>('events');
+    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media'>('events');
 
     // State
     const [events, setEvents] = useState<Event[]>([]);
     const [participants, setParticipants] = useState<Participant[]>([]);
+    const [media, setMedia] = useState<MediaAsset[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterGroup, setFilterGroup] = useState('All');
     const [filterEvent, setFilterEvent] = useState('All');
 
     // Loading states
-    // Removed unused loading states
+    const [loading, setLoading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<{ current: number, total: number } | null>(null);
 
     // Form State for New Event
     const [isAddingEvent, setIsAddingEvent] = useState(false);
@@ -56,11 +73,21 @@ export default function AdminDashboard() {
     // Bulk Upload State
     const [isUploadingExcel, setIsUploadingExcel] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const mediaInputRef = useRef<HTMLInputElement>(null);
+    const freeMediaInputRef = useRef<HTMLInputElement>(null);
+    const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [newEvent, setNewEvent] = useState<Partial<Event>>({
         title: '',
         model: 'Individual',
-        type: 'Onstage'
+        type: 'Onstage',
+        time: '',
+        endTime: '',
+        description: '',
+        location: ''
     });
+
+    // Media State
+    const [lastUploaded, setLastUploaded] = useState<{ url: string, publicId: string } | null>(null);
 
     // --- Realtime Firestore Subscriptions ---
     useEffect(() => {
@@ -90,9 +117,30 @@ export default function AdminDashboard() {
             setParticipants(liveParticipants);
         });
 
+        // Listen to Media
+        const mediaQuery = query(collection(db, 'media'));
+        const unsubscribeMedia = onSnapshot(mediaQuery, (snapshot) => {
+            console.log("Admin Dashboard: Media Snapshot received, count:", snapshot.size);
+            const liveMedia: MediaAsset[] = [];
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                liveMedia.push({ id: docSnap.id, ...data } as MediaAsset);
+            });
+            // Sort by timestamp desc, handling missing or invalid timestamps
+            const sortedMedia = [...liveMedia].sort((a, b) => {
+                const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                return timeB - timeA;
+            });
+            setMedia(sortedMedia);
+        }, (error) => {
+            console.error("Admin Dashboard: Media Subscription Error:", error);
+        });
+
         return () => {
             unsubscribeEvents();
             unsubscribeParticipants();
+            unsubscribeMedia();
         };
     }, []);
 
@@ -106,14 +154,56 @@ export default function AdminDashboard() {
                 title: newEvent.title,
                 model: newEvent.model,
                 type: newEvent.type,
-                registrationsCount: 0 // Default to zero on creation
+                registrationsCount: 0,
+                time: newEvent.time || '',
+                endTime: newEvent.endTime || '',
+                description: newEvent.description || '',
+                location: newEvent.location || ''
             });
             setIsAddingEvent(false);
-            setNewEvent({ title: '', model: 'Individual', type: 'Onstage' });
+            setNewEvent({ title: '', model: 'Individual', type: 'Onstage', time: '', endTime: '', description: '', location: '' });
         } catch (error) {
             console.error("Error creating event:", error);
             alert("Failed to create event. Is Firestore configured?");
         }
+    };
+
+    const handleUpdateEvent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingEvent?.id || !newEvent.title) return;
+
+        try {
+            const eventRef = doc(db, 'events', editingEvent.id);
+            await updateDoc(eventRef, {
+                title: newEvent.title,
+                model: newEvent.model,
+                type: newEvent.type,
+                time: newEvent.time || '',
+                endTime: newEvent.endTime || '',
+                description: newEvent.description || '',
+                location: newEvent.location || ''
+            });
+            setIsAddingEvent(false);
+            setEditingEvent(null);
+            setNewEvent({ title: '', model: 'Individual', type: 'Onstage', time: '', endTime: '', description: '', location: '' });
+        } catch (error) {
+            console.error("Error updating event:", error);
+            alert("Failed to update event.");
+        }
+    };
+
+    const handleEditClick = (event: Event) => {
+        setEditingEvent(event);
+        setNewEvent({
+            title: event.title,
+            model: event.model,
+            type: event.type,
+            time: event.time || '',
+            endTime: event.endTime || '',
+            description: event.description || '',
+            location: event.location || ''
+        });
+        setIsAddingEvent(true);
     };
 
     const handleDeleteEvent = async (id: string) => {
@@ -131,6 +221,121 @@ export default function AdminDashboard() {
             await deleteDoc(doc(db, 'participants', id));
         } catch (error) {
             console.error("Error deleting participant:", error);
+        }
+    };
+
+    const handleDeleteMedia = async (id: string) => {
+        if (!window.confirm("Are you sure you want to delete this asset from the gallery?")) return;
+        try {
+            await deleteDoc(doc(db, 'media', id));
+        } catch (error) {
+            console.error("Error deleting media:", error);
+        }
+    };
+
+    const handleImgBBUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setLoading(true);
+        setUploadProgress({ current: 0, total: files.length });
+
+        try {
+            const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                setUploadProgress({ current: i + 1, total: files.length });
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const info = result.data;
+                    setLastUploaded({
+                        url: info.url,
+                        publicId: info.id
+                    });
+
+                    await addDoc(collection(db, 'media'), {
+                        publicId: info.id,
+                        url: info.url,
+                        title: file.name.split('.')[0] || 'New Asset',
+                        category: 'All',
+                        size: 'square',
+                        timestamp: new Date().toISOString()
+                    });
+                } else {
+                    console.error(`ImgBB Upload Failed for ${file.name}:`, result.error);
+                }
+            }
+        } catch (error) {
+            console.error("Error in bulk ImgBB upload:", error);
+            alert("Some uploads might have failed. Please check the library.");
+        } finally {
+            setLoading(false);
+            setUploadProgress(null);
+            if (mediaInputRef.current) mediaInputRef.current.value = '';
+        }
+    };
+
+    const handleFreeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setLoading(true);
+        setUploadProgress({ current: 0, total: files.length });
+
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                setUploadProgress({ current: i + 1, total: files.length });
+
+                const formData = new FormData();
+                formData.append('source', file);
+                formData.append('action', 'upload');
+                formData.append('format', 'json');
+
+                const response = await fetch('/api/upload/freeimage', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status_code === 200) {
+                    const info = result.image;
+                    setLastUploaded({
+                        url: info.url,
+                        publicId: info.id_encoded
+                    });
+
+                    await addDoc(collection(db, 'media'), {
+                        publicId: info.id_encoded,
+                        url: info.url,
+                        title: file.name.split('.')[0] || 'New Asset',
+                        category: 'All',
+                        size: 'square',
+                        timestamp: new Date().toISOString()
+                    });
+                } else {
+                    console.error(`FreeImage Upload Failed for ${file.name}:`, result);
+                }
+            }
+        } catch (error) {
+            console.error("Error in bulk FreeImage upload:", error);
+            alert("Some uploads might have failed. Please check the library.");
+        } finally {
+            setLoading(false);
+            setUploadProgress(null);
+            if (freeMediaInputRef.current) freeMediaInputRef.current.value = '';
         }
     };
 
@@ -297,6 +502,15 @@ export default function AdminDashboard() {
                         <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
                     )}
                 </button>
+                <button
+                    onClick={() => setActiveTab('media')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'media' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Media Library
+                    {activeTab === 'media' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                    )}
+                </button>
             </div>
 
             <AnimatePresence mode="wait">
@@ -374,8 +588,10 @@ export default function AdminDashboard() {
                                     className="overflow-hidden"
                                 >
                                     <div className="bg-[#181611] border border-white/10 p-6 mb-4">
-                                        <h3 className="font-display text-xl text-white mb-6 border-b border-white/5 pb-2">Create New Event</h3>
-                                        <form onSubmit={handleCreateEvent} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                                        <h3 className="font-display text-xl text-white mb-6 border-b border-white/5 pb-2">
+                                            {editingEvent ? 'Edit Event' : 'Create New Event'}
+                                        </h3>
+                                        <form onSubmit={editingEvent ? handleUpdateEvent : handleCreateEvent} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                                             <div className="space-y-2 md:col-span-2">
                                                 <label className="block text-xs font-bold uppercase tracking-widest text-white/50">Event Title</label>
                                                 <input
@@ -408,9 +624,61 @@ export default function AdminDashboard() {
                                                     <option value="Offstage" className="bg-[#181611]">Offstage</option>
                                                 </select>
                                             </div>
-                                            <div className="md:col-span-4 mt-2 flex justify-end">
+
+                                            {/* New Detailed Fields */}
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/50">Start Time</label>
+                                                <input
+                                                    value={newEvent.time}
+                                                    onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                                                    className="w-full h-10 px-3 border-white/10 bg-black/20 text-white focus:border-accent-gold"
+                                                    placeholder="10:30 AM"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/50">End Time</label>
+                                                <input
+                                                    value={newEvent.endTime}
+                                                    onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+                                                    className="w-full h-10 px-3 border-white/10 bg-black/20 text-white focus:border-accent-gold"
+                                                    placeholder="12:00 PM"
+                                                />
+                                            </div>
+                                            <div className="space-y-2 md:col-span-2">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/50">Location</label>
+                                                <input
+                                                    value={newEvent.location}
+                                                    onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                                                    className="w-full h-10 px-3 border-white/10 bg-black/20 text-white focus:border-accent-gold"
+                                                    placeholder="Auditorium / Zoom Link"
+                                                />
+                                            </div>
+                                            <div className="space-y-2 md:col-span-4">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/50">Description</label>
+                                                <textarea
+                                                    value={newEvent.description}
+                                                    onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                                                    className="w-full h-24 p-3 border-white/10 bg-black/20 text-white focus:border-accent-gold"
+                                                    placeholder="Describe the event briefly..."
+                                                />
+                                            </div>
+
+                                            <div className="md:col-span-4 mt-2 flex justify-end gap-4">
+                                                {editingEvent && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setIsAddingEvent(false);
+                                                            setEditingEvent(null);
+                                                            setNewEvent({ title: '', model: 'Individual', type: 'Onstage', time: '', endTime: '', description: '', location: '' });
+                                                        }}
+                                                        className="h-10 px-8 border border-white/20 text-white/70 font-bold text-xs uppercase tracking-widest hover:bg-white/10 transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
                                                 <button type="submit" className="h-10 px-8 bg-accent-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors">
-                                                    Save Event
+                                                    {editingEvent ? 'Update Event' : 'Save Event'}
                                                 </button>
                                             </div>
                                         </form>
@@ -427,6 +695,8 @@ export default function AdminDashboard() {
                                         <th className="px-6 py-4 font-bold">Event Title</th>
                                         <th className="px-6 py-4 font-bold">Model</th>
                                         <th className="px-6 py-4 font-bold">Type</th>
+                                        <th className="px-6 py-4 font-bold">Time</th>
+                                        <th className="px-6 py-4 font-bold">Location</th>
                                         <th className="px-6 py-4 font-bold text-center">Registrations</th>
                                         <th className="px-6 py-4 font-bold text-right">Actions</th>
                                     </tr>
@@ -452,17 +722,28 @@ export default function AdminDashboard() {
                                                         {event.type}
                                                     </span>
                                                 </td>
+                                                <td className="px-6 py-4 text-xs italic text-accent-gold/70">{event.time || 'TBD'}</td>
+                                                <td className="px-6 py-4 text-xs text-white/60">{event.location || 'TBD'}</td>
                                                 <td className="px-6 py-4 text-center text-accent-gold font-bold">
                                                     {participants.filter(p => p.events?.includes(event.title)).length}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => handleDeleteEvent(event.id)}
-                                                        className="text-white/30 hover:text-accent-red transition-colors p-1"
-                                                        title="Delete Event"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
+                                                    <div className="flex justify-end gap-2 text-white/40">
+                                                        <button
+                                                            onClick={() => handleEditClick(event)}
+                                                            className="p-1 hover:text-accent-gold transition-colors"
+                                                            title="Edit Event"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteEvent(event.id)}
+                                                            className="text-white/30 hover:text-accent-red transition-colors p-1"
+                                                            title="Delete Event"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </motion.tr>
                                         ))}
@@ -599,6 +880,240 @@ export default function AdminDashboard() {
                             </table>
                         </div>
 
+                    </motion.div>
+                )}
+
+                {/* MEDIA VIEW */}
+                {activeTab === 'media' && (
+                    <motion.div key="media-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-12 pb-20">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                            <div>
+                                <h1 className="text-3xl font-display font-medium text-white mb-2">Media Library</h1>
+                                <p className="text-white/50 text-sm font-sans">Upload and manage visual assets for the festival.</p>
+                            </div>
+
+                            <input
+                                type="file"
+                                ref={mediaInputRef}
+                                onChange={handleImgBBUpload}
+                                className="hidden"
+                                accept="image/*"
+                                multiple
+                            />
+                            <input
+                                type="file"
+                                ref={freeMediaInputRef}
+                                onChange={handleFreeImageUpload}
+                                className="hidden"
+                                accept="image/*"
+                                multiple
+                            />
+                            <div className="flex flex-col gap-4">
+                                <div className="flex flex-wrap gap-4">
+                                    <button
+                                        onClick={() => mediaInputRef.current?.click()}
+                                        disabled={loading}
+                                        className="group flex min-w-[180px] cursor-pointer items-center justify-center rounded-none border border-accent-gold h-12 px-8 bg-accent-gold text-black transition-all duration-300 text-xs font-bold tracking-[0.2em] uppercase hover:bg-white disabled:opacity-50"
+                                    >
+                                        <span className="material-symbols-outlined mr-3">
+                                            {loading ? 'sync' : 'upload'}
+                                        </span>
+                                        {loading ? 'Uploading...' : 'Upload ImgBB'}
+                                    </button>
+                                    <button
+                                        onClick={() => freeMediaInputRef.current?.click()}
+                                        disabled={loading}
+                                        className="group flex min-w-[180px] cursor-pointer items-center justify-center rounded-none border border-white/20 h-12 px-8 bg-white/5 text-white transition-all duration-300 text-xs font-bold tracking-[0.2em] uppercase hover:bg-white hover:text-black disabled:opacity-50"
+                                    >
+                                        <span className="material-symbols-outlined mr-3">
+                                            {loading ? 'sync' : 'cloud_upload'}
+                                        </span>
+                                        {loading ? 'Uploading...' : 'Upload FreeImage'}
+                                    </button>
+                                </div>
+
+                                {uploadProgress && (
+                                    <div className="w-full space-y-2">
+                                        <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-bold">
+                                            <span className="text-accent-gold">Bulk Uploading...</span>
+                                            <span className="text-white/40">{uploadProgress.current} / {uploadProgress.total}</span>
+                                        </div>
+                                        <div className="h-1 w-full bg-white/5 overflow-hidden">
+                                            <motion.div
+                                                className="h-full bg-accent-gold"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Last Uploaded Preview */}
+                        <AnimatePresence>
+                            {lastUploaded && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="p-8 bg-[#181611] border border-accent-gold/30 rounded-sm flex flex-col md:flex-row gap-8 items-center"
+                                >
+                                    <div className="size-48 relative overflow-hidden bg-black/40 border border-white/5">
+                                        <img
+                                            src={lastUploaded.url}
+                                            alt="Newly uploaded"
+                                            className="object-cover w-full h-full"
+                                        />
+                                    </div>
+                                    <div className="flex-1 space-y-4">
+                                        <div className="flex items-center gap-2 text-accent-gold">
+                                            <span className="material-symbols-outlined">check_circle</span>
+                                            <span className="font-bold uppercase tracking-widest text-xs">Upload Successful</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest">Public ID</p>
+                                            <code className="block bg-black/60 p-2 text-accent-gold text-xs border border-white/10 select-all">
+                                                {lastUploaded.publicId}
+                                            </code>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-white/40 text-[10px] uppercase font-bold tracking-widest">Permanent URL</p>
+                                            <input
+                                                readOnly
+                                                value={lastUploaded.url}
+                                                className="w-full bg-black/60 p-2 text-white/70 text-xs border border-white/10 select-all"
+                                            />
+                                        </div>
+                                        <p className="text-white/50 text-[11px] italic font-sans">
+                                            Copy the Public ID above to use this image in the site code or Gallery items.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setLastUploaded(null)}
+                                        className="text-white/30 hover:text-white transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined">close</span>
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Existing Media List */}
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                <h2 className="text-xl font-display text-white uppercase tracking-widest">Asset Directory</h2>
+                                <span className="px-3 py-1 bg-white/5 text-[10px] font-bold text-accent-gold border border-white/10 rounded-full">
+                                    {media.length} Total Assets
+                                </span>
+                            </div>
+
+                            <div className="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.2em] text-white/40 sticky top-0 bg-[#0a0a0a] z-30">
+                                            <th className="px-6 py-4 font-bold">Preview</th>
+                                            <th className="px-6 py-4 font-bold">Details</th>
+                                            <th className="px-6 py-4 font-bold">Category</th>
+                                            <th className="px-6 py-4 font-bold text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                        <AnimatePresence mode='popLayout'>
+                                            {media.map((asset) => (
+                                                <motion.tr
+                                                    key={asset.id}
+                                                    layout
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="hover:bg-white/5 transition-colors group"
+                                                >
+                                                    <td className="px-6 py-4">
+                                                        <div className="size-16 relative overflow-hidden bg-black/40 border border-white/10 rounded-sm">
+                                                            {(asset.url || asset.image?.startsWith('http')) ? (
+                                                                <img
+                                                                    src={asset.url || asset.image}
+                                                                    alt={asset.title}
+                                                                    className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+                                                                    onError={(e) => {
+                                                                        (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/ddx7vzskv/image/upload/v1/cld-sample-5';
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <img
+                                                                    src={`https://res.cloudinary.com/ddx7vzskv/image/upload/c_fill,h_200,w_200/f_auto/q_auto/${asset.publicId || asset.image || 'cld-sample-5'}`}
+                                                                    alt={asset.title}
+                                                                    className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+                                                                    onError={(e) => {
+                                                                        (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/ddx7vzskv/image/upload/v1/cld-sample-5';
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-sm font-bold text-white tracking-wide">{asset.title}</span>
+                                                            <span className="text-[10px] text-white/30 font-mono select-all truncate max-w-[200px]" title={asset.publicId}>
+                                                                ID: {asset.publicId}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="px-2 py-0.5 bg-white/5 border border-white/10 text-[10px] text-white/50 uppercase tracking-wider">
+                                                            {asset.category}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex justify-end gap-3">
+                                                            <button
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(asset.publicId);
+                                                                    alert("ID copied to clipboard!");
+                                                                }}
+                                                                className="text-white/20 hover:text-accent-gold transition-colors"
+                                                                title="Copy Public ID"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">content_copy</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteMedia(asset.id)}
+                                                                className="text-white/20 hover:text-accent-red transition-colors"
+                                                                title="Delete Asset"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))}
+                                        </AnimatePresence>
+                                        {media.length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-20 text-center text-white/20 italic text-sm font-sans">
+                                                    No assets found in the library. Upload some to get started.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {[
+                                { title: 'Fast Delivery', icon: 'speed', desc: 'Uploaded images are automatically optimized for fast delivery via global CDNs.' },
+                                { title: 'High Availability', icon: 'cloud_done', desc: 'Your assets are hosted on reliable cloud infrastructure ensuring 24/7 access.' },
+                                { title: 'Asset Security', icon: 'verified_user', desc: 'Images are stored safely with permanent links for your site and gallery.' }
+                            ].map((tip, i) => (
+                                <div key={i} className="p-6 border border-white/5 bg-white/5 rounded-sm">
+                                    <span className="material-symbols-outlined text-accent-gold mb-4">{tip.icon}</span>
+                                    <h3 className="text-white font-bold text-sm mb-2 uppercase tracking-wider">{tip.title}</h3>
+                                    <p className="text-white/50 text-xs leading-relaxed font-sans">{tip.desc}</p>
+                                </div>
+                            ))}
+                        </div>
                     </motion.div>
                 )}
 

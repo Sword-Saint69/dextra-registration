@@ -8,28 +8,41 @@ export default function PageLoader() {
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
+        if (isLoading) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+    }, [isLoading]);
+
+    useEffect(() => {
         // Prevent loader from running multiple times per session
         const hasRun = sessionStorage.getItem('dextra_loader_run');
         if (hasRun) {
-            setTimeout(() => setIsLoading(false), 0);
+            setIsLoading(false);
             return;
         }
 
-        const duration = 2500; // 2.5s load time
+        const duration = 2500;
         const startTime = Date.now();
 
         const interval = setInterval(() => {
             const elapsed = Date.now() - startTime;
-            let currentProgress = (elapsed / duration) * 100;
+            const t = elapsed / duration;
 
-            if (currentProgress >= 100) {
+            const eased = 1 - Math.pow(1 - t, 3);
+            let currentProgress = eased * 100;
+
+            if (t >= 1) {
                 currentProgress = 100;
                 clearInterval(interval);
-                sessionStorage.setItem('dextra_loader_run', 'true');
-                setTimeout(() => setIsLoading(false), 500); // total 3s
+                sessionStorage.setItem("dextra_loader_run", "true");
+
+                setTimeout(() => setIsLoading(false), 400);
             }
+
             setProgress(currentProgress);
-        }, 50);
+        }, 16);
 
         return () => clearInterval(interval);
     }, []);
@@ -39,47 +52,18 @@ export default function PageLoader() {
             {isLoading && (
                 <motion.div
                     initial={{ opacity: 1 }}
-                    exit={{ opacity: 0, scale: 1.1, filter: "blur(10px)" }}
-                    transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+                    exit={{
+                        opacity: 0,
+                        y: -40,
+                        filter: "blur(12px)"
+                    }}
+                    transition={{
+                        duration: 1,
+                        ease: [0.22, 1, 0.36, 1]
+                    }}
                     className="fixed inset-0 z-[99999] bg-[#121212] font-display text-slate-100 antialiased overflow-hidden"
                 >
-                    <style dangerouslySetInnerHTML={{
-                        __html: `
-                        @keyframes silkFlow {
-                            0% { background-position: -200% 0; }
-                            100% { background-position: 200% 0; }
-                        }
-                        @keyframes pulseGlow {
-                            0%, 100% { box-shadow: 0 0 15px rgba(161,18,23,0.6); }
-                            50% { box-shadow: 0 0 25px rgba(161,18,23,1); }
-                        }
-                        @keyframes sparkMove {
-                            0% { left: 0%; opacity: 0; }
-                            10% { opacity: 1; }
-                            50% { left: 100%; opacity: 1; }
-                            90% { opacity: 0; }
-                            100% { left: 100%; opacity: 0; }
-                        }
-                        .silk-thread {
-                            background: linear-gradient(90deg, transparent, #A11217, #C6A664, #A11217, transparent);
-                            background-size: 200% 100%;
-                            animation: silkFlow 3s linear infinite, pulseGlow 2.5s ease-in-out infinite;
-                        }
-                        .spark {
-                            position: absolute;
-                            top: 50%;
-                            transform: translateY(-50%);
-                            width: 6px;
-                            height: 6px;
-                            background: #C6A664;
-                            border-radius: 50%;
-                            box-shadow: 0 0 12px #C6A664;
-                            animation: sparkMove 2.5s linear infinite;
-                        }
-                        .gold-trail {
-                            background: linear-gradient(90deg, transparent 0%, rgba(198,166,100,0.1) 50%, rgba(198,166,100,0.3) 100%);
-                        }
-                    `}} />
+
 
                     <div className="relative flex min-h-screen w-full flex-col justify-center items-center">
                         {/* Subtle noise texture */}
@@ -134,14 +118,37 @@ export default function PageLoader() {
                             </div>
 
                             {/* Bottom Brand Mark */}
-                            <div className="absolute bottom-12 left-0 right-0 flex justify-center opacity-30">
+                            <div className="absolute bottom-12 left-0 right-0 flex justify-center">
                                 <motion.div
-                                    animate={{ opacity: [0.3, 0.8, 0.3] }}
-                                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.5, duration: 1 }}
                                     className="flex items-center gap-3"
                                 >
-                                    <span className="material-symbols-outlined text-[#A11217] text-sm">filter_vintage</span>
-                                    <p className="text-[9px] tracking-[0.2em] font-light uppercase"> College of Engineering and Management Punnapra</p>
+                                    <motion.span
+                                        animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
+                                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                                        className="material-symbols-outlined text-[#A11217] text-sm"
+                                    >
+                                        filter_vintage
+                                    </motion.span>
+                                    <div className="overflow-hidden flex gap-x-[0.3em]">
+                                        {"College of Engineering and Management Punnapra".split(" ").map((word, i) => (
+                                            <motion.p
+                                                key={i}
+                                                initial={{ y: 20, opacity: 0 }}
+                                                animate={{ y: 0, opacity: 0.4 }}
+                                                transition={{
+                                                    delay: 0.8 + (i * 0.05),
+                                                    duration: 0.8,
+                                                    ease: [0.22, 1, 0.36, 1]
+                                                }}
+                                                className="text-[9px] tracking-[0.2em] font-light uppercase text-slate-100"
+                                            >
+                                                {word}
+                                            </motion.p>
+                                        ))}
+                                    </div>
                                 </motion.div>
                             </div>
                         </div>
