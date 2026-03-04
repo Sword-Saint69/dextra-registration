@@ -255,7 +255,7 @@ export default function PhotoRecreationPage() {
                                 <button
                                     onClick={handleLoadMore}
                                     disabled={loading}
-                                    className="group relative flex min-w-[240px] cursor-pointer items-center justify-center border border-accent-gold h-14 px-10 bg-transparent text-accent-gold hover:text-[#121212] transition-all duration-500 text-xs font-bold tracking-[0.3em] uppercase disabled:opacity-50"
+                                    className="group relative flex min-w-[240px] cursor-pointer items-center justify-center border border-accent-gold h-14 px-10 bg-transparent text-accent-gold hover:text-[#121212] transition-[color,background-color,border-color,box-shadow] duration-500 text-xs font-bold tracking-[0.3em] uppercase disabled:opacity-50 overflow-hidden"
                                 >
                                     <span className="absolute inset-0 bg-accent-gold -translate-x-full transition-transform duration-500 ease-in-out group-hover:translate-x-0"></span>
                                     <span className="relative z-10">{loading ? 'Loading...' : 'Load More Recreations'}</span>

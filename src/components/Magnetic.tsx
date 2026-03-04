@@ -27,6 +27,7 @@ export default function Magnetic({ children }: { children: React.ReactNode }) {
             animate={{ x: position.x, y: position.y }}
             transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
             className="magnetic"
+            style={{ display: 'inline-block' }}
         >
             {children}
         </motion.div>
