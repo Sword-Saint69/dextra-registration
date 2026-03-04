@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import CustomCursor from '@/components/CustomCursor';
 import Magnetic from '@/components/Magnetic';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, onSnapshot, limit, startAfter, getDocs, QueryDocumentSnapshot, DocumentData, where } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, limit, startAfter, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import UploadButton from '@/components/UploadButton';
 
 // Custom Easing (Luxury Ease)
@@ -27,12 +27,11 @@ interface GalleryItem {
     category: string;
     title: string;
     size: string;
-    image: string; // This will store publicId or URL
+    image: string;
 }
 
-export default function GalleryPage() {
+export default function PhotoRecreationPage() {
     const [isReady, setIsReady] = useState(false);
-    const [activeFilter, setActiveFilter] = useState('All');
     const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
     const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
     const [loading, setLoading] = useState(false);
@@ -41,7 +40,6 @@ export default function GalleryPage() {
 
     const handleDownload = async (url: string, title: string) => {
         try {
-            // For Cloudinary public IDs, we need to construct the full URL
             const finalUrl = url.startsWith('http')
                 ? url
                 : `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto/${url}`;
@@ -58,7 +56,6 @@ export default function GalleryPage() {
             window.URL.revokeObjectURL(blobUrl);
         } catch (error) {
             console.error("Download failed:", error);
-            // Fallback: open in new tab if blob fetch fails
             const fallbackUrl = url.startsWith('http')
                 ? url
                 : `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto/${url}`;
@@ -71,11 +68,12 @@ export default function GalleryPage() {
         const delay = hasRun ? 100 : 3000;
         const timer = setTimeout(() => setIsReady(true), delay);
 
-        // Fetch based on activeFilter
-        let q = query(collection(db, 'media'), orderBy('timestamp', 'desc'), limit(ITEMS_PER_PAGE));
-        if (activeFilter !== 'All') {
-            q = query(collection(db, 'media'), where('category', '==', activeFilter), orderBy('timestamp', 'desc'), limit(ITEMS_PER_PAGE));
-        }
+        // Fetch from recreation_media collection
+        const q = query(
+            collection(db, 'recreation_media'),
+            orderBy('timestamp', 'desc'),
+            limit(ITEMS_PER_PAGE)
+        );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const items: GalleryItem[] = [];
@@ -84,7 +82,7 @@ export default function GalleryPage() {
                 const imageSource = data.url || data.publicId || data.image || 'cld-sample-5';
                 items.push({
                     id: doc.id,
-                    category: data.category || 'All',
+                    category: data.category || 'Recreation',
                     title: data.title || 'Untitled',
                     size: data.size || 'square',
                     image: imageSource
@@ -99,16 +97,18 @@ export default function GalleryPage() {
             clearTimeout(timer);
             unsubscribe();
         };
-    }, [activeFilter]);
+    }, []);
 
     const handleLoadMore = async () => {
         if (!lastDoc || loading) return;
         setLoading(true);
 
-        let q = query(collection(db, 'media'), orderBy('timestamp', 'desc'), startAfter(lastDoc), limit(ITEMS_PER_PAGE));
-        if (activeFilter !== 'All') {
-            q = query(collection(db, 'media'), where('category', '==', activeFilter), orderBy('timestamp', 'desc'), startAfter(lastDoc), limit(ITEMS_PER_PAGE));
-        }
+        const q = query(
+            collection(db, 'recreation_media'),
+            orderBy('timestamp', 'desc'),
+            startAfter(lastDoc),
+            limit(ITEMS_PER_PAGE)
+        );
         const snapshot = await getDocs(q);
 
         if (!snapshot.empty) {
@@ -118,7 +118,7 @@ export default function GalleryPage() {
                 const imageSource = data.url || data.publicId || data.image || 'cld-sample-5';
                 newItems.push({
                     id: doc.id,
-                    category: data.category || 'All',
+                    category: data.category || 'Recreation',
                     title: data.title || 'Untitled',
                     size: data.size || 'square',
                     image: imageSource
@@ -133,8 +133,6 @@ export default function GalleryPage() {
         setLoading(false);
     };
 
-    const filteredItems = galleryItems;
-
     return (
         <div className="bg-background-dark min-h-screen flex flex-col overflow-x-hidden text-slate-100 selection:bg-accent-gold/30">
             <CustomCursor />
@@ -146,7 +144,6 @@ export default function GalleryPage() {
                 transition={{ duration: 1, ease: luxuryEase, delay: 0.2 }}
                 className="flex-1 relative"
             >
-                {/* Background ambient streaks */}
                 <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
                     <div className="absolute inset-0 bg-gradient-to-br from-accent-red/5 via-transparent to-accent-gold/5"></div>
                 </div>
@@ -164,43 +161,27 @@ export default function GalleryPage() {
                             variants={fadeUp}
                             className="text-white text-5xl md:text-7xl lg:text-8xl font-display font-medium mb-6"
                         >
-                            The Visual <span className="text-accent-gold italic">Legacy</span>
+                            Photo <span className="text-accent-gold italic">Recreation</span>
                         </motion.h1>
                         <motion.p
                             variants={fadeUp}
                             className="text-white/60 font-sans max-w-2xl mx-auto text-sm md:text-lg uppercase tracking-[0.3em] font-light mb-12"
                         >
-                            A Journey Through Sight and Sound
+                            Relive and Recreate the Magic
                         </motion.p>
 
                         <motion.div variants={fadeUp} className="flex justify-center">
-                            <UploadButton category="Event" collectionName="media" />
+                            <UploadButton category="Recreation" collectionName="recreation_media" />
                         </motion.div>
                     </motion.div>
 
-                    {/* Filters */}
-                    <div className="flex flex-wrap justify-center gap-4 md:gap-8 mb-16 border-b border-white/5 pb-6">
-                        {['All', 'Performances', 'Artworks', 'Behind the Scenes', 'Event'].map((filter) => (
-                            <button
-                                key={filter}
-                                onClick={() => setActiveFilter(filter)}
-                                className={`relative pb-4 text-xs font-bold uppercase tracking-widest transition-all ${activeFilter === filter ? 'text-accent-gold' : 'text-white/50 hover:text-white'}`}
-                            >
-                                {filter}
-                                {activeFilter === filter && (
-                                    <motion.div layoutId="activeFilter" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                                )}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Masonry-like Grid */}
+                    {/* Grid */}
                     <motion.div
                         layout
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 auto-rows-[250px] gap-6"
                     >
                         <AnimatePresence mode='popLayout'>
-                            {filteredItems.map((item) => (
+                            {galleryItems.map((item) => (
                                 <motion.div
                                     key={item.id}
                                     layout
@@ -222,7 +203,6 @@ export default function GalleryPage() {
                                         }}
                                     />
 
-                                    {/* Info Overlay */}
                                     <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8 z-20">
                                         <motion.span
                                             initial={{ y: 10, opacity: 0 }}
@@ -246,17 +226,12 @@ export default function GalleryPage() {
                                                     handleDownload(item.image, item.title);
                                                 }}
                                                 className="size-10 rounded-full border border-accent-gold flex items-center justify-center bg-background-dark/80 hover:bg-accent-gold hover:text-background-dark transition-all duration-300"
-                                                title="Download Memory"
+                                                title="Download"
                                             >
                                                 <span className="material-symbols-outlined text-lg">download</span>
                                             </button>
-                                            <div className="size-10 rounded-full border border-white/20 flex items-center justify-center bg-background-dark/80">
-                                                <span className="material-symbols-outlined text-[18px]">visibility</span>
-                                            </div>
                                         </div>
                                     </div>
-
-                                    {/* Border Glow */}
                                     <div className="absolute inset-0 border border-white/0 group-hover:border-accent-gold/30 transition-all duration-500 z-30 pointer-events-none" />
                                 </motion.div>
                             ))}
@@ -270,11 +245,11 @@ export default function GalleryPage() {
                             className="mt-20 text-center py-20 border border-dashed border-white/10"
                         >
                             <span className="material-symbols-outlined text-5xl text-white/10 mb-4">collections</span>
-                            <p className="text-white/30 font-sans tracking-widest uppercase text-sm">No memories captured yet.</p>
+                            <p className="text-white/30 font-sans tracking-widest uppercase text-sm">No recreations yet. Be the first to share!</p>
                         </motion.div>
                     )}
 
-                    {hasMore && (
+                    {hasMore && galleryItems.length > 0 && (
                         <div className="mt-20 flex justify-center">
                             <Magnetic>
                                 <button
@@ -283,7 +258,7 @@ export default function GalleryPage() {
                                     className="group relative flex min-w-[240px] cursor-pointer items-center justify-center border border-accent-gold h-14 px-10 bg-transparent text-accent-gold hover:text-[#121212] transition-all duration-500 text-xs font-bold tracking-[0.3em] uppercase disabled:opacity-50"
                                 >
                                     <span className="absolute inset-0 bg-accent-gold -translate-x-full transition-transform duration-500 ease-in-out group-hover:translate-x-0"></span>
-                                    <span className="relative z-10">{loading ? 'Loading...' : 'Load More Memories'}</span>
+                                    <span className="relative z-10">{loading ? 'Loading...' : 'Load More Recreations'}</span>
                                 </button>
                             </Magnetic>
                         </div>
@@ -293,21 +268,6 @@ export default function GalleryPage() {
 
             <footer className="bg-[#0f0e0b] border-t border-white/10 px-6 py-16 relative z-10">
                 <div className="container mx-auto max-w-[1200px] flex flex-col items-center">
-                    <div className="flex items-center gap-2 mb-8 text-white opacity-40">
-                        {/* Logo Removed */}
-                    </div>
-                    <div className="flex flex-wrap justify-center gap-8 mb-8 text-sm">
-                        {['Privacy Policy', 'Terms of Service', 'Code of Conduct'].map(link => (
-                            <a key={link} className="text-white/60 hover:text-accent-gold transition-colors" href="#">{link}</a>
-                        ))}
-                    </div>
-                    <div className="flex gap-6 mb-8">
-                        {['IG', 'FB', 'X'].map(social => (
-                            <a key={social} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/60 hover:text-accent-gold hover:border-accent-gold transition-all" href="#">
-                                <span className="font-bold text-xs">{social}</span>
-                            </a>
-                        ))}
-                    </div>
                     <p className="text-white/40 text-[10px] uppercase tracking-widest leading-relaxed text-center">
                         &quot;Different Paths. One Celebration.&quot;<br />
                         © 2026 DEXTRA Arts Festival. All rights reserved.

@@ -49,6 +49,7 @@ const menuItems = [
     { name: 'Home', path: '/' },
     { name: 'Events', path: '/events' },
     { name: 'Gallery', path: '/gallery' },
+    { name: 'Photo recreation', path: '/photo-recreation' },
     { name: 'Certificates', path: '/certificates' },
     { name: 'Contact', path: '/contact' }
 ];
