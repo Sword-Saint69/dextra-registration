@@ -245,137 +245,141 @@ export default function UnionDayRegister() {
                     >
                         {isSuccess ? (
                             <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
+                                initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="flex flex-col items-center justify-center text-center py-24 bg-white/[0.02] border border-white/[0.05] backdrop-blur-3xl px-12"
+                                className="flex flex-col items-center justify-center text-center py-20"
                             >
-                                <div className="w-24 h-24 rounded-full border border-accent-gold/30 flex items-center justify-center mb-8 text-accent-gold shadow-[0_0_40px_rgba(198,166,100,0.2)]">
-                                    <span className="material-symbols-outlined text-5xl">check_circle</span>
+                                <div className="w-24 h-24 rounded-full border border-accent-gold flex items-center justify-center mb-8 text-accent-gold shadow-[0_0_40px_rgba(198,166,100,0.2)]">
+                                    <span className="material-symbols-outlined text-5xl">check</span>
                                 </div>
-                                <h2 className="text-white font-display text-5xl font-bold mb-6 tracking-tighter">Registration<br />Complete</h2>
-                                <p className="text-white/40 font-sans text-sm uppercase tracking-widest leading-loose">
-                                    Thank you, {formData.name}.<br />Your entry for <span className="text-accent-gold">{formData.eventName}</span> has been archived in the collective.
+                                <h2 className="text-white font-display text-5xl font-bold mb-6 tracking-tighter">Registration Complete</h2>
+                                <p className="text-white/60 font-sans text-sm uppercase tracking-widest leading-loose">
+                                    Thank you, {formData.name}.<br />Your entry for <span className="text-accent-gold">{formData.eventName}</span> has been stored.
                                 </p>
                                 <Link href="/" className="mt-12 group flex items-center gap-3 text-accent-gold uppercase tracking-[0.3em] text-[10px] font-black hover:text-white transition-all duration-500">
                                     <span className="material-symbols-outlined text-sm transition-transform duration-500 group-hover:-translate-x-2">west</span>
-                                    Return to Collective
+                                    Return to Home
                                 </Link>
                             </motion.div>
                         ) : (
-                            <div className="bg-white/[0.01] border border-white/[0.05] backdrop-blur-3xl p-8 md:p-12 shadow-[0_40px_100px_rgba(0,0,0,0.4)]">
-                                <div className="mb-12 relative flex justify-between items-end">
-                                    <div>
-                                        <motion.div variants={fadeUp} className="text-accent-gold text-[10px] uppercase font-bold tracking-[0.4em] mb-4">Registration Portal</motion.div>
-                                        <motion.h2 variants={fadeUp} className="text-white font-display text-5xl font-bold mb-0 tracking-tight">Express <span className="italic font-light opacity-60 text-accent-gold">Unity.</span></motion.h2>
-                                    </div>
-                                    <motion.div variants={fadeUp} className="text-right hidden sm:block">
-                                        <div className="text-[32px] font-display font-light text-white/10 leading-none">01</div>
-                                        <div className="text-[10px] text-white/20 uppercase tracking-widest">Step</div>
-                                    </motion.div>
+                            <div className="max-w-md w-full mx-auto">
+                                <div className="mb-10 relative">
+                                    <motion.h2 variants={fadeUp} className="text-white font-display text-4xl font-bold mb-2">Registration</motion.h2>
+                                    <motion.div
+                                        variants={{
+                                            hidden: { width: 0 },
+                                            show: { width: 48, transition: { duration: 0.8, ease: luxuryEase } }
+                                        }}
+                                        className="h-1 bg-accent-gold"
+                                    ></motion.div>
+                                    <motion.p variants={fadeUp} className="mt-6 text-white/50 text-sm font-sans uppercase tracking-widest">
+                                        Express <span className="text-accent-gold italic">Unity</span> through your artistic craft at Union Day 2026.
+                                    </motion.p>
                                 </div>
 
-                                <form className="space-y-8" onSubmit={handleRegister}>
+                                <form className="space-y-6" onSubmit={handleRegister}>
                                     {/* Registration Type Selection */}
-                                    <motion.div variants={fadeUp} className="flex gap-10 border-b border-white/5 pb-8 mb-4">
+                                    <motion.div variants={fadeUp} className="flex gap-10 border-b border-white/5 pb-6 mb-4">
                                         <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setRegistrationType('individual')}>
-                                            <div className={`w-6 h-6 rounded-none border flex items-center justify-center transition-all duration-500 ${registrationType === 'individual' ? 'border-accent-gold ring-4 ring-accent-gold/10' : 'border-white/10 group-hover:border-white/30'}`}>
-                                                {registrationType === 'individual' && <motion.div layoutId="type-dot" className="w-2.5 h-2.5 bg-accent-gold" />}
+                                            <div className={`w-5 h-5 rounded-none border flex items-center justify-center transition-all duration-500 ${registrationType === 'individual' ? 'border-accent-gold' : 'border-white/10 group-hover:border-white/30'}`}>
+                                                {registrationType === 'individual' && <motion.div layoutId="type-dot" className="w-2 h-2 bg-accent-gold" />}
                                             </div>
-                                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${registrationType === 'individual' ? 'text-white' : 'text-white/20 group-hover:text-white/40'}`}>Individual</span>
+                                            <span className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-500 ${registrationType === 'individual' ? 'text-white' : 'text-white/20 group-hover:text-white/40'}`}>Individual</span>
                                         </div>
                                         <div className="flex items-center gap-4 cursor-pointer group" onClick={() => setRegistrationType('group')}>
-                                            <div className={`w-6 h-6 rounded-none border flex items-center justify-center transition-all duration-500 ${registrationType === 'group' ? 'border-accent-gold ring-4 ring-accent-gold/10' : 'border-white/10 group-hover:border-white/30'}`}>
-                                                {registrationType === 'group' && <motion.div layoutId="type-dot" className="w-2.5 h-2.5 bg-accent-gold" />}
+                                            <div className={`w-5 h-5 rounded-none border flex items-center justify-center transition-all duration-500 ${registrationType === 'group' ? 'border-accent-gold' : 'border-white/10 group-hover:border-white/30'}`}>
+                                                {registrationType === 'group' && <motion.div layoutId="type-dot" className="w-2 h-2 bg-accent-gold" />}
                                             </div>
-                                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${registrationType === 'group' ? 'text-white' : 'text-white/20 group-hover:text-white/40'}`}>Group</span>
+                                            <span className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-500 ${registrationType === 'group' ? 'text-white' : 'text-white/20 group-hover:text-white/40'}`}>Group</span>
                                         </div>
                                     </motion.div>
 
-                                    <div className="space-y-8">
-                                        <h3 className="text-[10px] text-accent-gold uppercase tracking-[0.4em] font-black flex items-center gap-3">
-                                            <span className="w-6 h-[1px] bg-accent-gold/30"></span>
-                                            {registrationType === 'individual' ? 'Registrant Profile' : 'Captain Profile'}
-                                        </h3>
+                                    <div className="space-y-6">
+                                        <motion.div variants={fadeUp} className="space-y-2">
+                                            <label className="block text-xs font-bold uppercase tracking-widest text-white/70 font-sans" htmlFor="eventName">Event Name *</label>
+                                            <input
+                                                className="w-full h-12 px-4 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold transition-all"
+                                                id="eventName" name="eventName" placeholder="Enter Event Name" required type="text"
+                                                value={formData.eventName} onChange={handleInputChange} disabled={isSubmitting}
+                                            />
+                                        </motion.div>
 
-                                        <div className="space-y-6">
-                                            <motion.div variants={fadeUp} className="group space-y-2">
-                                                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/30 group-focus-within:text-accent-gold transition-colors" htmlFor="eventName">Event Name</label>
+                                        <motion.div variants={fadeUp} className="space-y-2">
+                                            <label className="block text-xs font-bold uppercase tracking-widest text-white/70 font-sans" htmlFor="name">{registrationType === 'individual' ? 'Name' : 'Captain Name'} *</label>
+                                            <input
+                                                className="w-full h-12 px-4 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold transition-all"
+                                                id="name" name="name" placeholder="Full Name" required type="text"
+                                                value={formData.name} onChange={handleInputChange} disabled={isSubmitting}
+                                            />
+                                        </motion.div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <motion.div variants={fadeUp} className="space-y-2">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/70 font-sans" htmlFor="prpCode">PRP Code *</label>
                                                 <input
-                                                    className="w-full h-14 px-5 rounded-none border-white/5 border bg-white/[0.03] text-accent-gold font-bold focus:border-accent-gold/50 focus:bg-white/[0.05] focus:ring-4 focus:ring-accent-gold/5 outline-none transition-all duration-500 placeholder:text-white/10"
-                                                    id="eventName" name="eventName" placeholder="Enter Event Name" required type="text"
-                                                    value={formData.eventName} onChange={handleInputChange} disabled={isSubmitting}
+                                                    className="w-full h-12 px-4 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold transition-all uppercase"
+                                                    id="prpCode" name="prpCode" placeholder="PRP24CS0XX" required type="text"
+                                                    value={formData.prpCode} onChange={handleInputChange} disabled={isSubmitting}
                                                 />
                                             </motion.div>
 
-                                            <motion.div variants={fadeUp} className="group space-y-2">
-                                                <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/30 group-focus-within:text-accent-gold transition-colors" htmlFor="name">Name</label>
-                                                <input
-                                                    className="w-full h-14 px-5 rounded-none border-white/5 border bg-white/[0.03] text-white focus:border-accent-gold/50 focus:bg-white/[0.05] focus:ring-4 focus:ring-accent-gold/5 outline-none transition-all duration-500 placeholder:text-white/10"
-                                                    id="name" name="name" placeholder="Enter Full Name" required type="text"
-                                                    value={formData.name} onChange={handleInputChange} disabled={isSubmitting}
-                                                />
-                                            </motion.div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <motion.div variants={fadeUp} className="group space-y-2">
-                                                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/30 group-focus-within:text-accent-gold transition-colors" htmlFor="prpCode">PRP Code</label>
-                                                    <input
-                                                        className="w-full h-14 px-5 rounded-none border-white/5 border bg-white/[0.03] text-white focus:border-accent-gold/50 focus:bg-white/[0.05] focus:ring-4 focus:ring-accent-gold/5 outline-none transition-all duration-500 uppercase placeholder:text-white/10"
-                                                        id="prpCode" name="prpCode" placeholder="PRP-XXXX" required type="text"
-                                                        value={formData.prpCode} onChange={handleInputChange} disabled={isSubmitting}
-                                                    />
-                                                </motion.div>
-
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <motion.div variants={fadeUp} className="group space-y-2">
-                                                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/30 group-focus-within:text-accent-gold transition-colors" htmlFor="department">Department</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <motion.div variants={fadeUp} className="space-y-2">
+                                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-white/70 font-sans" htmlFor="department">Department</label>
+                                                    <div className="relative">
                                                         <select
-                                                            className="w-full h-14 px-4 rounded-none border-white/5 border bg-[#0d0d0d] text-white focus:border-accent-gold/50 focus:ring-4 focus:ring-accent-gold/5 outline-none transition-all duration-500 text-xs appearance-none cursor-pointer"
+                                                            className="w-full h-12 px-4 rounded-none border border-white/10 bg-transparent text-white appearance-none focus:border-accent-gold focus:ring-1 focus:ring-accent-gold transition-all text-xs"
                                                             id="department" name="department" required
                                                             value={formData.department} onChange={handleInputChange} disabled={isSubmitting}
                                                         >
-                                                            <option value="">PIK</option>
+                                                            <option value="" className="bg-[#121212]">Dept</option>
                                                             {DEPARTMENTS.map(dept => (
-                                                                <option key={dept} value={dept}>{dept}</option>
+                                                                <option key={dept} value={dept} className="bg-[#121212]">{dept}</option>
                                                             ))}
                                                         </select>
-                                                    </motion.div>
-                                                    <motion.div variants={fadeUp} className="group space-y-2">
-                                                        <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/30 group-focus-within:text-accent-gold transition-colors" htmlFor="semester">Semester</label>
+                                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
+                                                            <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                                <motion.div variants={fadeUp} className="space-y-2">
+                                                    <label className="block text-[10px] font-bold uppercase tracking-widest text-white/70 font-sans" htmlFor="semester">Semester</label>
+                                                    <div className="relative">
                                                         <select
-                                                            className="w-full h-14 px-4 rounded-none border-white/5 border bg-[#0d0d0d] text-white focus:border-accent-gold/50 focus:ring-4 focus:ring-accent-gold/5 outline-none transition-all duration-500 text-xs appearance-none cursor-pointer"
+                                                            className="w-full h-12 px-4 rounded-none border border-white/10 bg-transparent text-white appearance-none focus:border-accent-gold focus:ring-1 focus:ring-accent-gold transition-all text-xs"
                                                             id="semester" name="semester" required
                                                             value={formData.semester} onChange={handleInputChange} disabled={isSubmitting}
                                                         >
-                                                            <option value="">PIK</option>
+                                                            <option value="" className="bg-[#121212]">Sem</option>
                                                             {SEMESTERS.map(sem => (
-                                                                <option key={sem} value={sem}>{sem}</option>
+                                                                <option key={sem} value={sem} className="bg-[#121212]">{sem}</option>
                                                             ))}
                                                         </select>
-                                                    </motion.div>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <motion.div variants={fadeUp} className="group space-y-2">
-                                                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/30 group-focus-within:text-accent-gold transition-colors" htmlFor="email">Mail Id</label>
-                                                    <input
-                                                        className="w-full h-14 px-5 rounded-none border-white/5 border bg-white/[0.03] text-white focus:border-accent-gold/50 focus:bg-white/[0.05] focus:ring-4 focus:ring-accent-gold/5 outline-none transition-all duration-500 placeholder:text-white/10"
-                                                        id="email" name="email" placeholder="email@address.com" required type="email"
-                                                        value={formData.email} onChange={handleInputChange} disabled={isSubmitting}
-                                                    />
-                                                </motion.div>
-
-                                                <motion.div variants={fadeUp} className="group space-y-2">
-                                                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-white/30 group-focus-within:text-accent-gold transition-colors" htmlFor="phone">Phone Number</label>
-                                                    <input
-                                                        className="w-full h-14 px-5 rounded-none border-white/5 border bg-white/[0.03] text-white focus:border-accent-gold/50 focus:bg-white/[0.05] focus:ring-4 focus:ring-accent-gold/5 outline-none transition-all duration-500 placeholder:text-white/10"
-                                                        id="phone" name="phone" placeholder="+91 XXXXX XXXXX" required type="tel"
-                                                        value={formData.phone} onChange={handleInputChange} disabled={isSubmitting}
-                                                    />
+                                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/50">
+                                                            <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
+                                                        </div>
+                                                    </div>
                                                 </motion.div>
                                             </div>
                                         </div>
+
+                                        <motion.div variants={fadeUp} className="space-y-2">
+                                            <label className="block text-xs font-bold uppercase tracking-widest text-white/70 font-sans" htmlFor="email">Mail Id *</label>
+                                            <input
+                                                className="w-full h-12 px-4 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold transition-all"
+                                                id="email" name="email" placeholder="email@address.com" required type="email"
+                                                value={formData.email} onChange={handleInputChange} disabled={isSubmitting}
+                                            />
+                                        </motion.div>
+
+                                        <motion.div variants={fadeUp} className="space-y-2">
+                                            <label className="block text-xs font-bold uppercase tracking-widest text-white/70 font-sans" htmlFor="phone">Phone Number *</label>
+                                            <input
+                                                className="w-full h-12 px-4 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold transition-all"
+                                                id="phone" name="phone" placeholder="+91 XXXXX XXXXX" required type="tel"
+                                                value={formData.phone} onChange={handleInputChange} disabled={isSubmitting}
+                                            />
+                                        </motion.div>
                                     </div>
 
                                     {/* Group Members Section */}
@@ -385,97 +389,91 @@ export default function UnionDayRegister() {
                                                 initial={{ height: 0, opacity: 0 }}
                                                 animate={{ height: 'auto', opacity: 1 }}
                                                 exit={{ height: 0, opacity: 0 }}
-                                                className="overflow-hidden space-y-8 pt-4"
+                                                className="overflow-hidden space-y-6 pt-4"
                                             >
-                                                <div className="flex justify-between items-center border-b border-white/5 pb-4">
-                                                    <h3 className="text-[10px] text-white/40 uppercase tracking-[0.5em] font-black">Group Members</h3>
+                                                <div className="flex justify-between items-baseline border-b border-white/5 pb-2">
+                                                    <h3 className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Group Members</h3>
                                                     <button
                                                         type="button"
                                                         onClick={addMember}
-                                                        className="group flex items-center gap-2 text-[10px] text-accent-gold uppercase tracking-[0.3em] font-black hover:text-white transition-all duration-500"
+                                                        className="text-[10px] text-accent-gold uppercase tracking-widest font-bold hover:text-white transition-all flex items-center gap-1"
                                                     >
-                                                        <span className="w-4 h-4 rounded-full border border-accent-gold/30 flex items-center justify-center text-[10px] transition-all group-hover:bg-accent-gold group-hover:text-[#0a0a0a]">+</span>
-                                                        Add Member
+                                                        <span className="material-symbols-outlined text-sm">add</span> Add Member
                                                     </button>
                                                 </div>
 
-                                                <div className="space-y-6">
+                                                <div className="space-y-4">
                                                     {members.map((member, index) => (
                                                         <motion.div
                                                             key={index}
-                                                            initial={{ x: -20, opacity: 0 }}
+                                                            initial={{ x: -10, opacity: 0 }}
                                                             animate={{ x: 0, opacity: 1 }}
-                                                            className="p-6 border border-white/[0.03] bg-white/[0.01] hover:bg-white/[0.02] transition-colors group relative"
+                                                            className="p-4 border border-white/5 bg-white/[0.02] space-y-4 relative group"
                                                         >
-                                                            <div className="flex justify-between items-center mb-6">
-                                                                <div className="flex items-center gap-3">
-                                                                    <span className="text-[10px] text-accent-gold/40 font-black uppercase tracking-widest leading-none">Member #{String(index + 1).padStart(2, '0')}</span>
-                                                                    <div className="w-8 h-[1px] bg-white/5"></div>
-                                                                </div>
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">Member #{index + 1}</span>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => removeMember(index)}
-                                                                    className="text-white/10 hover:text-accent-red transition-all duration-300"
+                                                                    className="text-white/10 hover:text-accent-red transition-all"
                                                                 >
-                                                                    <span className="material-symbols-outlined text-[16px]">close</span>
+                                                                    <span className="material-symbols-outlined text-xs">close</span>
                                                                 </button>
                                                             </div>
 
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                                <div className="space-y-2">
-                                                                    <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-white/20">Name</label>
-                                                                    <input
-                                                                        className="w-full h-12 px-4 rounded-none border-white/5 border bg-[#0d0d0d] text-white focus:border-accent-gold/30 outline-none transition-all duration-500 text-sm"
-                                                                        value={member.name}
-                                                                        onChange={(e) => updateMember(index, 'name', e.target.value)}
-                                                                        placeholder="Full Name" required
-                                                                    />
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-white/20">PRP Code</label>
-                                                                    <input
-                                                                        className="w-full h-12 px-4 rounded-none border-white/5 border bg-[#0d0d0d] text-white focus:border-accent-gold/30 outline-none transition-all duration-500 text-sm uppercase"
-                                                                        value={member.prpCode}
-                                                                        onChange={(e) => updateMember(index, 'prpCode', e.target.value)}
-                                                                        placeholder="PRP Code" required
-                                                                    />
-                                                                </div>
-                                                                <div className="grid grid-cols-2 gap-4 col-span-1 md:col-span-2">
-                                                                    <div className="space-y-2">
-                                                                        <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-white/20">Department</label>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                <input
+                                                                    className="w-full h-10 px-3 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold transition-all text-sm"
+                                                                    value={member.name}
+                                                                    onChange={(e) => updateMember(index, 'name', e.target.value)}
+                                                                    placeholder="Full Name" required
+                                                                />
+                                                                <input
+                                                                    className="w-full h-10 px-3 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold transition-all text-sm uppercase"
+                                                                    value={member.prpCode}
+                                                                    onChange={(e) => updateMember(index, 'prpCode', e.target.value)}
+                                                                    placeholder="PRP Code" required
+                                                                />
+                                                                <div className="grid grid-cols-2 gap-2 col-span-1 md:col-span-2">
+                                                                    <div className="relative">
                                                                         <select
-                                                                            className="w-full h-12 px-3 rounded-none border border-white/5 bg-[#0d0d0d] text-white focus:border-accent-gold/30 outline-none transition-all duration-500 text-xs appearance-none"
+                                                                            className="w-full h-10 px-3 rounded-none border border-white/10 bg-transparent text-white appearance-none focus:border-accent-gold transition-all text-xs"
                                                                             value={member.department}
                                                                             onChange={(e) => updateMember(index, 'department', e.target.value)}
                                                                             required
                                                                         >
-                                                                            <option value="">Select</option>
+                                                                            <option value="" className="bg-[#121212]">Dept</option>
                                                                             {DEPARTMENTS.map(dept => (
-                                                                                <option key={dept} value={dept}>{dept}</option>
+                                                                                <option key={dept} value={dept} className="bg-[#121212]">{dept}</option>
                                                                             ))}
                                                                         </select>
+                                                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/30">
+                                                                            <span className="material-symbols-outlined text-xs">keyboard_arrow_down</span>
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="space-y-2">
-                                                                        <label className="block text-[9px] font-black uppercase tracking-[0.2em] text-white/20">Semester</label>
+                                                                    <div className="relative">
                                                                         <select
-                                                                            className="w-full h-12 px-3 rounded-none border border-white/5 bg-[#0d0d0d] text-white focus:border-accent-gold/30 outline-none transition-all duration-500 text-xs appearance-none"
+                                                                            className="w-full h-10 px-3 rounded-none border border-white/10 bg-transparent text-white appearance-none focus:border-accent-gold transition-all text-xs"
                                                                             value={member.semester}
                                                                             onChange={(e) => updateMember(index, 'semester', e.target.value)}
                                                                             required
                                                                         >
-                                                                            <option value="">Select</option>
+                                                                            <option value="" className="bg-[#121212]">Sem</option>
                                                                             {SEMESTERS.map(sem => (
-                                                                                <option key={sem} value={sem}>{sem}</option>
+                                                                                <option key={sem} value={sem} className="bg-[#121212]">{sem}</option>
                                                                             ))}
                                                                         </select>
+                                                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-white/30">
+                                                                            <span className="material-symbols-outlined text-xs">keyboard_arrow_down</span>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </motion.div>
                                                     ))}
                                                     {members.length === 0 && (
-                                                        <div className="text-center py-12 border border-dashed border-white/5 text-white/10 text-[9px] uppercase tracking-[0.4em] font-black italic">
-                                                            Awaiting Member Addition.
+                                                        <div className="text-center py-6 border border-dashed border-white/5 text-white/10 text-[9px] uppercase tracking-widest italic">
+                                                            No members added yet.
                                                         </div>
                                                     )}
                                                 </div>
@@ -483,24 +481,23 @@ export default function UnionDayRegister() {
                                         )}
                                     </AnimatePresence>
 
-                                    <motion.div variants={fadeUp} className="pt-10">
+                                    <motion.div variants={fadeUp} className="pt-6">
                                         <button
-                                            className={`w-full group relative flex h-16 cursor-pointer items-center justify-center overflow-hidden rounded-none border border-accent-gold/30 bg-accent-gold text-[#0a0a0a] transition-all duration-700 font-black tracking-[0.4em] uppercase text-[11px] ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_40px_rgba(198,166,100,0.3)] hover:-translate-y-1'}`}
+                                            className={`w-full group relative flex min-w-[140px] cursor-pointer items-center justify-center overflow-hidden rounded-none border border-accent-gold h-14 px-6 bg-accent-gold text-[#121212] transition-all duration-500 text-sm font-bold tracking-[0.2em] uppercase ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-[0_0_20px_rgba(198,166,100,0.3)] hover:-translate-y-1'}`}
                                             type="submit"
                                             disabled={isSubmitting}
                                         >
-                                            <span className="absolute inset-0 bg-[#0a0a0a] -translate-x-full transition-transform duration-700 ease-in-out group-hover:translate-x-0"></span>
-                                            <span className="relative z-10 transition-colors duration-700 group-hover:text-accent-gold flex items-center gap-4">
-                                                {isSubmitting ? 'SYNCHRONIZING...' : 'AUTHORIZE REGISTRATION'}
-                                                {!isSubmitting && (
-                                                    <span className="material-symbols-outlined text-[16px] transition-transform duration-700 group-hover:translate-x-2">
-                                                        east
-                                                    </span>
-                                                )}
+                                            {!isSubmitting && <span className="absolute inset-0 bg-transparent -translate-x-full border border-accent-gold transition-transform duration-500 ease-in-out group-hover:translate-x-0 group-hover:bg-[#121212]"></span>}
+                                            <span className="relative z-10 flex items-center transition-colors duration-300 group-hover:text-accent-gold">
+                                                <span className="truncate">{isSubmitting ? 'Synchronizing...' : 'Submit Registration'}</span>
+                                                {!isSubmitting && <span className="material-symbols-outlined ml-2 text-sm transition-transform duration-300 group-hover:translate-x-1">arrow_forward</span>}
                                             </span>
-                                            <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/20 opacity-40 group-hover:animate-glint"></div>
                                         </button>
                                     </motion.div>
+
+                                    <motion.p variants={fadeUp} className="text-center text-[10px] text-white/30 uppercase tracking-widest pt-4">
+                                        By registering, you agree to the arts festival protocol.
+                                    </motion.p>
                                 </form>
                             </div>
                         )}

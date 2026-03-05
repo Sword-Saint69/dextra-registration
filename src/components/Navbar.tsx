@@ -101,10 +101,6 @@ export default function Navbar() {
                     <span className="font-display text-2xl font-bold tracking-tighter transition-all duration-500 group-hover:text-accent-gold group-hover:tracking-normal group-hover:drop-shadow-[0_0_10px_rgba(198,166,100,0.5)]">
                         DEXTRA
                     </span>
-                    <div className="h-4 w-px bg-white/10 hidden sm:block"></div>
-                    <span className="hidden sm:block text-[10px] uppercase tracking-[0.4em] font-bold text-white/30 group-hover:text-white/50 transition-colors">
-                        Est. 2026
-                    </span>
                 </Link>
 
                 {/* Desktop Navigation */}
