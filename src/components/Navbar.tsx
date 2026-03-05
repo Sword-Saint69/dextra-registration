@@ -48,6 +48,7 @@ const mobileItemVariants: Variants = {
 const menuItems = [
     { name: 'Home', path: '/' },
     { name: 'Events', path: '/events' },
+    { name: 'Union Day', path: '/union-day' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'Photo recreation', path: '/photo-recreation' },
     { name: 'Certificates', path: '/certificates' },
@@ -78,43 +79,67 @@ export default function Navbar() {
                 initial="hidden"
                 animate="show"
                 variants={navReveal}
-                className={`fixed top-0 z-[60] w-full flex items-center justify-between whitespace-nowrap px-6 py-4 md:px-10 transition-all duration-500 ${scrolled || isOpen ? "bg-[#121212]/90 backdrop-blur-xl border-b border-white/10 py-3" : "bg-transparent border-b border-transparent py-5"
+                className={`fixed top-0 z-[60] w-full flex items-center justify-between whitespace-nowrap px-6 py-4 md:px-10 transition-all duration-700 ${scrolled || isOpen
+                    ? "bg-[#0a0a0a]/80 backdrop-blur-2xl border-b border-white/5 py-4 shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
+                    : "bg-transparent border-b border-transparent py-6"
                     }`}
             >
+                {/* Animated Gradient Border (Bottom) */}
+                <AnimatePresence>
+                    {scrolled && (
+                        <motion.div
+                            initial={{ scaleX: 0, opacity: 0 }}
+                            animate={{ scaleX: 1, opacity: 1 }}
+                            exit={{ scaleX: 0, opacity: 0 }}
+                            className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-accent-gold/40 to-transparent origin-center shadow-[0_0_10px_rgba(198,166,100,0.2)]"
+                        />
+                    )}
+                </AnimatePresence>
+
                 {/* Logo / Title Area */}
                 <Link href="/" className="flex items-center gap-4 text-white group relative z-[70]">
-                    <span className="font-display text-xl font-bold tracking-tighter hover:text-accent-gold transition-colors">
+                    <span className="font-display text-2xl font-bold tracking-tighter transition-all duration-500 group-hover:text-accent-gold group-hover:tracking-normal group-hover:drop-shadow-[0_0_10px_rgba(198,166,100,0.5)]">
                         DEXTRA
+                    </span>
+                    <div className="h-4 w-px bg-white/10 hidden sm:block"></div>
+                    <span className="hidden sm:block text-[10px] uppercase tracking-[0.4em] font-bold text-white/30 group-hover:text-white/50 transition-colors">
+                        Est. 2026
                     </span>
                 </Link>
 
                 {/* Desktop Navigation */}
-                <div className="hidden md:flex flex-1 justify-end gap-8 items-center">
-                    <nav className="flex items-center gap-8">
+                <div className="hidden md:flex flex-1 justify-end gap-10 items-center">
+                    <nav className="flex items-center gap-10">
                         {menuItems.map((item) => (
                             <Link
                                 key={item.name}
                                 href={item.path}
-                                className={`group relative transition-colors text-sm font-medium leading-normal ${pathname === item.path ? 'text-accent-gold' : 'text-white/80 hover:text-white'
+                                className={`group relative transition-all duration-500 text-[11px] uppercase tracking-[0.2em] font-bold hover:text-white ${pathname === item.path ? 'text-accent-gold' : 'text-white/40'
                                     }`}
                             >
-                                {item.name}
-                                {pathname === item.path && (
+                                <span className="relative z-10">{item.name}</span>
+                                {pathname === item.path ? (
                                     <motion.div
                                         layoutId="nav-underline"
-                                        className="absolute -bottom-1 left-0 w-full h-px bg-accent-gold"
+                                        className="absolute -bottom-2 left-0 w-full h-0.5 bg-accent-gold shadow-[0_0_10px_rgba(198,166,100,0.5)]"
+                                        transition={{ type: "spring", stiffness: 380, damping: 30 }}
                                     />
+                                ) : (
+                                    <div className="absolute -bottom-2 left-0 w-0 h-0.5 bg-white/20 transition-all duration-500 group-hover:w-full"></div>
                                 )}
                             </Link>
                         ))}
                     </nav>
+
+                    <div className="h-8 w-px bg-white/10 ml-2"></div>
+
                     <Magnetic>
                         <Link
                             href="/register"
-                            className="group relative flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden border border-accent-gold h-10 px-6 bg-transparent text-accent-gold hover:text-[#121212] transition-[color,background-color,border-color,box-shadow,transform] duration-500 text-sm font-bold leading-normal tracking-[0.015em] hover:shadow-[0_0_15px_rgba(198,166,100,0.3)]"
+                            className="group relative flex min-w-[120px] cursor-pointer items-center justify-center overflow-hidden border border-accent-gold/50 h-10 px-6 bg-transparent text-accent-gold transition-all duration-500 text-[10px] uppercase tracking-[0.2em] font-black hover:border-accent-gold hover:shadow-[0_0_20px_rgba(198,166,100,0.2)]"
                         >
                             <span className="absolute inset-0 bg-accent-gold -translate-x-full transition-transform duration-500 ease-in-out group-hover:translate-x-0"></span>
-                            <span className="relative z-10 truncate">Register Now</span>
+                            <span className="relative z-10 transition-colors duration-500 group-hover:text-[#0a0a0a]">Register</span>
                         </Link>
                     </Magnetic>
                 </div>

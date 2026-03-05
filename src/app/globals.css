@@ -75,6 +75,10 @@
   }
 }
 
+.animate-glint {
+  animation: glint 3s infinite;
+}
+
 .glint-effect {
   position: relative;
   overflow: hidden;

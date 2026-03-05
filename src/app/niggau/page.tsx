@@ -44,6 +44,27 @@ interface Participant {
     events: string[];
 }
 
+interface UnionDayParticipant {
+    id: string;
+    name: string;
+    prpCode: string;
+    department: string;
+    semester: string;
+    eventName: string;
+    email: string;
+    phone: string;
+    registrationType: 'individual' | 'group';
+    members?: Member[];
+    timestamp: any;
+}
+
+interface Member {
+    name: string;
+    prpCode: string;
+    department: string;
+    semester: string;
+}
+
 // --- Animation Config ---
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
 const fadeUp = {
@@ -53,11 +74,12 @@ const fadeUp = {
 };
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media'>('events');
+    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media' | 'union-day'>('events');
 
     // State
     const [events, setEvents] = useState<Event[]>([]);
     const [participants, setParticipants] = useState<Participant[]>([]);
+    const [unionDayParticipants, setUnionDayParticipants] = useState<UnionDayParticipant[]>([]);
     const [media, setMedia] = useState<MediaAsset[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterGroup, setFilterGroup] = useState('All');
@@ -137,10 +159,21 @@ export default function AdminDashboard() {
             console.error("Admin Dashboard: Media Subscription Error:", error);
         });
 
+        // Listen to Union Day Participants
+        const unionDayQuery = query(collection(db, 'union_day_participants'));
+        const unsubscribeUnionDay = onSnapshot(unionDayQuery, (snapshot) => {
+            const liveUnionDay: UnionDayParticipant[] = [];
+            snapshot.forEach((docSnap) => {
+                liveUnionDay.push({ id: docSnap.id, ...docSnap.data() } as UnionDayParticipant);
+            });
+            setUnionDayParticipants(liveUnionDay);
+        });
+
         return () => {
             unsubscribeEvents();
             unsubscribeParticipants();
             unsubscribeMedia();
+            unsubscribeUnionDay();
         };
     }, []);
 
@@ -230,6 +263,15 @@ export default function AdminDashboard() {
             await deleteDoc(doc(db, 'media', id));
         } catch (error) {
             console.error("Error deleting media:", error);
+        }
+    };
+
+    const handleDeleteUnionDayParticipant = async (id: string) => {
+        if (!window.confirm("Are you sure you want to remove this Union Day registration?")) return;
+        try {
+            await deleteDoc(doc(db, 'union_day_participants', id));
+        } catch (error) {
+            console.error("Error deleting Union Day participant:", error);
         }
     };
 
@@ -359,6 +401,13 @@ export default function AdminDashboard() {
         return matchesGroup && matchesEvent && matchesSearch;
     });
 
+    const filteredUnionDayParticipants = unionDayParticipants.filter(p => {
+        return (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.prpCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.eventName || '').toLowerCase().includes(searchQuery.toLowerCase());
+    });
+
     // --- PDF Export Logic ---
     const exportToPDF = () => {
         const doc = new jsPDF();
@@ -376,7 +425,7 @@ export default function AdminDashboard() {
                 ]),
             });
             doc.save("dextra_events_report.pdf");
-        } else {
+        } else if (activeTab === 'participants') {
             doc.text("DEXTRA 2026 - Participant Directory", 14, 20);
             autoTable(doc, {
                 startY: 25,
@@ -390,6 +439,22 @@ export default function AdminDashboard() {
                 ]),
             });
             doc.save("dextra_participants_report.pdf");
+        } else if (activeTab === 'union-day') {
+            doc.text("DEXTRA 2026 - Union Day Participants", 14, 20);
+            autoTable(doc, {
+                startY: 25,
+                head: [['Name', 'PRP Code', 'Dept/Sem', 'Event', 'Email', 'Phone', 'Type']],
+                body: filteredUnionDayParticipants.map(p => [
+                    p.name,
+                    p.prpCode,
+                    `${p.department} (S${p.semester})`,
+                    p.eventName,
+                    p.email,
+                    p.phone,
+                    p.registrationType || 'individual'
+                ]),
+            });
+            doc.save("dextra_union_day_report.pdf");
         }
     };
 
@@ -405,7 +470,7 @@ export default function AdminDashboard() {
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Events");
             XLSX.writeFile(workbook, "dextra_filtered_events.xlsx");
-        } else {
+        } else if (activeTab === 'participants') {
             const data = filteredParticipants.map(p => ({
                 Name: p.name,
                 Email: p.email,
@@ -417,6 +482,21 @@ export default function AdminDashboard() {
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Participants");
             XLSX.writeFile(workbook, "dextra_filtered_participants.xlsx");
+        } else if (activeTab === 'union-day') {
+            const data = filteredUnionDayParticipants.map(p => ({
+                Name: p.name,
+                PRPCode: p.prpCode,
+                Department: p.department,
+                Semester: p.semester,
+                Event: p.eventName,
+                Email: p.email,
+                Phone: p.phone,
+                Type: p.registrationType || 'individual'
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "UnionDay");
+            XLSX.writeFile(workbook, "dextra_union_day_participants.xlsx");
         }
     };
 
@@ -508,6 +588,15 @@ export default function AdminDashboard() {
                 >
                     Media Library
                     {activeTab === 'media' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('union-day')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'union-day' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Union Day
+                    {activeTab === 'union-day' && (
                         <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
                     )}
                 </button>
@@ -1113,6 +1202,123 @@ export default function AdminDashboard() {
                                     <p className="text-white/50 text-xs leading-relaxed font-sans">{tip.desc}</p>
                                 </div>
                             ))}
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* UNION DAY VIEW */}
+                {activeTab === 'union-day' && (
+                    <motion.div key="union-day-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                            <div>
+                                <h1 className="text-3xl font-display font-medium text-white mb-2">Union Day Registrations</h1>
+                                <p className="text-white/50 text-sm font-sans">View and manage registrations for Union Day 2026.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-4 items-center">
+                                <input
+                                    type="text"
+                                    placeholder="Search Union Day..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs"
+                                />
+                                <button
+                                    onClick={exportToPDF}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-accent-gold text-black transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-white"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">picture_as_pdf</span>
+                                    PDF
+                                </button>
+                                <button
+                                    onClick={exportToExcel}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-green-600 text-white transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-green-700"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">table_view</span>
+                                    Excel
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Union Day Table */}
+                        <div className="w-full overflow-x-auto border border-white/10 bg-[#181611]/50 mix-blend-screen backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-white/80">
+                                <thead className="bg-black/40 text-xs uppercase tracking-widest text-white/50 border-b border-white/10">
+                                    <tr>
+                                        <th className="px-6 py-4 font-bold">Representative</th>
+                                        <th className="px-6 py-4 font-bold">Type</th>
+                                        <th className="px-6 py-4 font-bold">Event</th>
+                                        <th className="px-6 py-4 font-bold">Contact</th>
+                                        <th className="px-6 py-4 font-bold">Members</th>
+                                        <th className="px-6 py-4 font-bold text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    <AnimatePresence>
+                                        {filteredUnionDayParticipants.map((p) => (
+                                            <motion.tr
+                                                key={p.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className="hover:bg-white/5 transition-colors"
+                                            >
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-white">{p.name}</span>
+                                                        <span className="text-[10px] text-accent-gold uppercase tracking-tighter">{p.prpCode} • {p.department} S{p.semester}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase tracking-widest border rounded-sm ${p.registrationType === 'group' ? 'border-purple-500/40 text-purple-400 bg-purple-500/5' : 'border-white/20 text-white/40'}`}>
+                                                        {p.registrationType || 'individual'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-[10px] uppercase tracking-widest text-white/60">
+                                                        {p.eventName}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-xs text-white/70">{p.email}</span>
+                                                        <span className="text-[10px] text-white/40">{p.phone}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {p.registrationType === 'group' && p.members && p.members.length > 0 ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-[10px] text-accent-gold font-bold uppercase">{p.members.length} Members</span>
+                                                            <div className="flex flex-col gap-0.5 max-h-20 overflow-y-auto custom-scrollbar pr-2">
+                                                                {p.members.map((m, idx) => (
+                                                                    <span key={idx} className="text-[9px] text-white/40 leading-tight">
+                                                                        {m.name} ({m.department} S{m.semester})
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] text-white/20 italic">N/A</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button
+                                                        onClick={() => handleDeleteUnionDayParticipant(p.id)}
+                                                        className="text-white/30 hover:text-accent-red transition-colors p-1"
+                                                        title="Delete Registration"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                </td>
+                                            </motion.tr>
+                                        ))}
+                                        {filteredUnionDayParticipants.length === 0 && (
+                                            <tr>
+                                                <td colSpan={6} className="px-6 py-12 text-center text-white/40 italic">No Union Day registrations found.</td>
+                                            </tr>
+                                        )}
+                                    </AnimatePresence>
+                                </tbody>
+                            </table>
                         </div>
                     </motion.div>
                 )}
