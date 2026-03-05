@@ -28,6 +28,9 @@ interface GalleryItem {
     title: string;
     size: string;
     image: string;
+    userName?: string;
+    ktuId?: string;
+    house?: string;
 }
 
 export default function PhotoRecreationPage() {
@@ -85,7 +88,10 @@ export default function PhotoRecreationPage() {
                     category: data.category || 'Recreation',
                     title: data.title || 'Untitled',
                     size: data.size || 'square',
-                    image: imageSource
+                    image: imageSource,
+                    userName: data.userName,
+                    ktuId: data.ktuId,
+                    house: data.house
                 });
             });
             setGalleryItems(items);
@@ -121,7 +127,10 @@ export default function PhotoRecreationPage() {
                     category: data.category || 'Recreation',
                     title: data.title || 'Untitled',
                     size: data.size || 'square',
-                    image: imageSource
+                    image: imageSource,
+                    userName: data.userName,
+                    ktuId: data.ktuId,
+                    house: data.house
                 });
             });
             setGalleryItems(prev => [...prev, ...newItems]);
@@ -171,7 +180,7 @@ export default function PhotoRecreationPage() {
                         </motion.p>
 
                         <motion.div variants={fadeUp} className="flex justify-center">
-                            <UploadButton category="Recreation" collectionName="recreation_media" />
+                            <UploadButton category="Recreation" collectionName="recreation_media" showMetadataForm={true} />
                         </motion.div>
                     </motion.div>
 
@@ -188,6 +197,7 @@ export default function PhotoRecreationPage() {
                                     initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
                                     animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                                     exit={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
+                                    whileHover="hover"
                                     transition={{ duration: 0.6, ease: luxuryEase }}
                                     className={`relative group overflow-hidden cursor-pointer ${item.size === 'tall' ? 'row-span-2' :
                                         item.size === 'wide' ? 'md:col-span-2' : ''
@@ -203,23 +213,74 @@ export default function PhotoRecreationPage() {
                                         }}
                                     />
 
-                                    <div className="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-8 z-20">
-                                        <motion.span
-                                            initial={{ y: 10, opacity: 0 }}
-                                            whileHover={{ y: 0, opacity: 1 }}
-                                            className="text-accent-gold text-[10px] font-bold uppercase tracking-[0.2em] mb-2"
-                                        >
-                                            {item.category}
-                                        </motion.span>
+                                    <motion.div
+                                        variants={{
+                                            initial: { opacity: 0 },
+                                            hover: { opacity: 1 }
+                                        }}
+                                        transition={{ duration: 0.4 }}
+                                        className="absolute inset-0 bg-gradient-to-t from-background-dark/95 via-background-dark/40 to-transparent flex flex-col justify-end p-8 z-20"
+                                    >
+                                        <div className="flex flex-col gap-1 mb-4">
+                                            {item.userName && (
+                                                <motion.div
+                                                    variants={{
+                                                        initial: { y: 10, opacity: 0 },
+                                                        hover: { y: 0, opacity: 1 }
+                                                    }}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <span className="text-[10px] text-accent-gold/60 uppercase tracking-widest font-bold">Artist:</span>
+                                                    <span className="text-white text-sm font-medium">{item.userName}</span>
+                                                </motion.div>
+                                            )}
+                                            {item.ktuId && (
+                                                <motion.div
+                                                    variants={{
+                                                        initial: { y: 10, opacity: 0 },
+                                                        hover: { y: 0, opacity: 1 }
+                                                    }}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <span className="text-[10px] text-accent-gold/60 uppercase tracking-widest font-bold">KTU ID:</span>
+                                                    <span className="text-white/80 text-xs">{item.ktuId}</span>
+                                                </motion.div>
+                                            )}
+                                            {item.house && (
+                                                <motion.div
+                                                    variants={{
+                                                        initial: { y: 10, opacity: 0 },
+                                                        hover: { y: 0, opacity: 1 }
+                                                    }}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <span className="text-[10px] text-accent-gold/60 uppercase tracking-widest font-bold">House:</span>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${item.house === 'Agni' ? 'border-accent-red text-accent-red' :
+                                                            item.house === 'Astra' ? 'border-purple-400 text-purple-400' :
+                                                                item.house === 'Vajra' ? 'border-blue-400 text-blue-400' :
+                                                                    'border-orange-400 text-orange-400'
+                                                        } font-bold uppercase`}>{item.house}</span>
+                                                </motion.div>
+                                            )}
+                                        </div>
+
                                         <motion.h3
-                                            initial={{ y: 10, opacity: 0 }}
-                                            whileHover={{ y: 0, opacity: 1 }}
-                                            className="text-white text-2xl font-display italic"
+                                            variants={{
+                                                initial: { y: 10, opacity: 0 },
+                                                hover: { y: 0, opacity: 1 }
+                                            }}
+                                            className="text-white text-xl font-display italic"
                                         >
                                             {item.title}
                                         </motion.h3>
 
-                                        <div className="absolute top-8 right-8 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-500 scale-0 group-hover:scale-100 transition-transform">
+                                        <motion.div
+                                            variants={{
+                                                initial: { scale: 0, opacity: 0 },
+                                                hover: { scale: 1, opacity: 1 }
+                                            }}
+                                            className="absolute top-8 right-8 flex gap-3"
+                                        >
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -230,8 +291,8 @@ export default function PhotoRecreationPage() {
                                             >
                                                 <span className="material-symbols-outlined text-lg">download</span>
                                             </button>
-                                        </div>
-                                    </div>
+                                        </motion.div>
+                                    </motion.div>
                                     <div className="absolute inset-0 border border-white/0 group-hover:border-accent-gold/30 transition-all duration-500 z-30 pointer-events-none" />
                                 </motion.div>
                             ))}
