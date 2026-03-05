@@ -41,30 +41,7 @@ export default function PhotoRecreationPage() {
     const [hasMore, setHasMore] = useState(true);
     const ITEMS_PER_PAGE = 6;
 
-    const handleDownload = async (url: string, title: string) => {
-        try {
-            const finalUrl = url.startsWith('http')
-                ? url
-                : `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto/${url}`;
 
-            const response = await fetch(finalUrl);
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `${title.replace(/\s+/g, '_')}_DEXTRA2026.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
-        } catch (error) {
-            console.error("Download failed:", error);
-            const fallbackUrl = url.startsWith('http')
-                ? url
-                : `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto/${url}`;
-            window.open(fallbackUrl, '_blank');
-        }
-    };
 
     useEffect(() => {
         const hasRun = sessionStorage.getItem('dextra_loader_run');
@@ -256,9 +233,9 @@ export default function PhotoRecreationPage() {
                                                 >
                                                     <span className="text-[10px] text-accent-gold/60 uppercase tracking-widest font-bold">House:</span>
                                                     <span className={`text-[10px] px-2 py-0.5 rounded-full border ${item.house === 'Agni' ? 'border-accent-red text-accent-red' :
-                                                            item.house === 'Astra' ? 'border-purple-400 text-purple-400' :
-                                                                item.house === 'Vajra' ? 'border-blue-400 text-blue-400' :
-                                                                    'border-orange-400 text-orange-400'
+                                                        item.house === 'Astra' ? 'border-purple-400 text-purple-400' :
+                                                            item.house === 'Vajra' ? 'border-blue-400 text-blue-400' :
+                                                                'border-orange-400 text-orange-400'
                                                         } font-bold uppercase`}>{item.house}</span>
                                                 </motion.div>
                                             )}
@@ -274,24 +251,7 @@ export default function PhotoRecreationPage() {
                                             {item.title}
                                         </motion.h3>
 
-                                        <motion.div
-                                            variants={{
-                                                initial: { scale: 0, opacity: 0 },
-                                                hover: { scale: 1, opacity: 1 }
-                                            }}
-                                            className="absolute top-8 right-8 flex gap-3"
-                                        >
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDownload(item.image, item.title);
-                                                }}
-                                                className="size-10 rounded-full border border-accent-gold flex items-center justify-center bg-background-dark/80 hover:bg-accent-gold hover:text-background-dark transition-all duration-300"
-                                                title="Download"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">download</span>
-                                            </button>
-                                        </motion.div>
+
                                     </motion.div>
                                     <div className="absolute inset-0 border border-white/0 group-hover:border-accent-gold/30 transition-all duration-500 z-30 pointer-events-none" />
                                 </motion.div>

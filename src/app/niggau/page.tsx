@@ -74,13 +74,14 @@ const fadeUp = {
 };
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media' | 'union-day'>('events');
+    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media' | 'union-day' | 'recreation'>('events');
 
     // State
     const [events, setEvents] = useState<Event[]>([]);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [unionDayParticipants, setUnionDayParticipants] = useState<UnionDayParticipant[]>([]);
     const [media, setMedia] = useState<MediaAsset[]>([]);
+    const [recreationMedia, setRecreationMedia] = useState<MediaAsset[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterGroup, setFilterGroup] = useState('All');
     const [filterEvent, setFilterEvent] = useState('All');
@@ -169,11 +170,28 @@ export default function AdminDashboard() {
             setUnionDayParticipants(liveUnionDay);
         });
 
+        // Listen to Recreation Media
+        const recreationQuery = query(collection(db, 'recreation_media'));
+        const unsubscribeRecreation = onSnapshot(recreationQuery, (snapshot) => {
+            const liveRecreation: MediaAsset[] = [];
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                liveRecreation.push({
+                    id: docSnap.id,
+                    ...data,
+                    publicId: data.publicId || data.image || 'cld-sample-5',
+                    url: data.url || (data.image && data.image.startsWith('http') ? data.image : `https://res.cloudinary.com/ddx7vzskv/image/upload/v1/${data.image || 'cld-sample-5'}`)
+                } as MediaAsset);
+            });
+            setRecreationMedia(liveRecreation);
+        });
+
         return () => {
             unsubscribeEvents();
             unsubscribeParticipants();
             unsubscribeMedia();
             unsubscribeUnionDay();
+            unsubscribeRecreation();
         };
     }, []);
 
@@ -272,6 +290,33 @@ export default function AdminDashboard() {
             await deleteDoc(doc(db, 'union_day_participants', id));
         } catch (error) {
             console.error("Error deleting Union Day participant:", error);
+        }
+    };
+
+    const handleDeleteRecreationMedia = async (id: string) => {
+        if (!window.confirm("Are you sure you want to delete this recreation entry?")) return;
+        try {
+            await deleteDoc(doc(db, 'recreation_media', id));
+        } catch (error) {
+            console.error("Error deleting recreation media:", error);
+        }
+    };
+
+    const handleDownload = async (url: string, title: string) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `${title.replace(/\s+/g, '_')}_DEXTRA_RECREATION.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+            console.error("Download failed:", error);
+            window.open(url, '_blank');
         }
     };
 
@@ -598,6 +643,15 @@ export default function AdminDashboard() {
                     Union Day
                     {activeTab === 'union-day' && (
                         <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('recreation')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'recreation' ? 'text-pink-500' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Recreation
+                    {activeTab === 'recreation' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-500" />
                     )}
                 </button>
             </div>
@@ -1323,6 +1377,103 @@ export default function AdminDashboard() {
                     </motion.div>
                 )}
 
+                {/* RECREATION VIEW */}
+                {activeTab === 'recreation' && (
+                    <motion.div key="recreation-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                            <div>
+                                <h1 className="text-3xl font-display font-medium text-white mb-2">Photo Recreation Entries</h1>
+                                <p className="text-white/50 text-sm font-sans">Manage and download submissions from the Photo Recreation portal.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-4 items-center">
+                                <input
+                                    type="text"
+                                    placeholder="Search entries..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="w-full overflow-x-auto border border-white/10 bg-[#181611]/50 mix-blend-screen backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-white/80">
+                                <thead className="bg-black/40 text-xs uppercase tracking-widest text-white/50 border-b border-white/10">
+                                    <tr>
+                                        <th className="px-6 py-4 font-bold">Preview</th>
+                                        <th className="px-6 py-4 font-bold">Artist Info</th>
+                                        <th className="px-6 py-4 font-bold">Entry Title</th>
+                                        <th className="px-6 py-4 font-bold text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    <AnimatePresence>
+                                        {recreationMedia
+                                            .filter(item =>
+                                                (item.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                ((item as any).userName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                ((item as any).ktuId || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map((item) => (
+                                                <motion.tr
+                                                    key={item.id}
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="hover:bg-white/5 transition-colors group"
+                                                >
+                                                    <td className="px-6 py-4 text-white">
+                                                        <div className="size-16 relative overflow-hidden bg-black/40 border border-white/10 rounded-sm">
+                                                            <img
+                                                                src={item.url}
+                                                                alt={item.title}
+                                                                className="object-cover w-full h-full"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/ddx7vzskv/image/upload/v1/cld-sample-5';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium text-white">{(item as any).userName || 'Anonymous'}</span>
+                                                            <span className="text-[10px] text-accent-gold uppercase tracking-tighter">{(item as any).ktuId} • {(item as any).house}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-xs text-white/60">{item.title}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex justify-end gap-3">
+                                                            <button
+                                                                onClick={() => handleDownload(item.url, item.title)}
+                                                                className="text-white/20 hover:text-accent-gold transition-colors"
+                                                                title="Download Full Quality"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">download</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteRecreationMedia(item.id)}
+                                                                className="text-white/20 hover:text-accent-red transition-colors"
+                                                                title="Delete Entry"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))}
+                                        {recreationMedia.length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-12 text-center text-white/40 italic">No recreation entries yet.</td>
+                                            </tr>
+                                        )}
+                                    </AnimatePresence>
+                                </tbody>
+                            </table>
+                        </div>
+                    </motion.div>
+                )}
             </AnimatePresence>
         </div>
     );
