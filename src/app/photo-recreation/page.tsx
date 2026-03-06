@@ -7,7 +7,7 @@ import CustomCursor from '@/components/CustomCursor';
 import Magnetic from '@/components/Magnetic';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, limit, startAfter, getDocs, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import UploadButton from '@/components/UploadButton';
+
 
 // Custom Easing (Luxury Ease)
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
@@ -156,9 +156,7 @@ export default function PhotoRecreationPage() {
                             Relive and Recreate the Magic
                         </motion.p>
 
-                        <motion.div variants={fadeUp} className="flex justify-center">
-                            <UploadButton category="Recreation" collectionName="recreation_media" showMetadataForm={true} />
-                        </motion.div>
+
                     </motion.div>
 
                     {/* Grid */}
