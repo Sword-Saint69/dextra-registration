@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, Easing, Variants } from 'framer-motion';
+import { motion, useScroll, useTransform, Easing, Variants, AnimatePresence } from 'framer-motion';
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import RedThread from '@/components/RedThread';
@@ -49,6 +49,11 @@ interface EventData {
     type: 'Onstage' | 'Offstage';
 }
 
+interface Member {
+    name: string;
+    universityCode: string;
+}
+
 export default function Register() {
     const heroRef = useRef(null);
     const { scrollYProgress } = useScroll({
@@ -68,7 +73,9 @@ export default function Register() {
         phone: '',
         group: '',
         universityCode: '',
-        selectedEvents: [] as string[]
+        selectedEvents: [] as string[],
+        members: [] as Member[],
+        groupNo: ''
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,6 +114,8 @@ export default function Register() {
                 group: formData.group,
                 universityCode: formData.universityCode,
                 events: formData.selectedEvents,
+                members: formData.members,
+                groupNo: formData.groupNo,
                 timestamp: new Date()
             });
 
@@ -138,13 +147,59 @@ export default function Register() {
 
     // --- Multi-Select Logic ---
     const toggleEvent = (eventTitle: string) => {
+        const event = availableEvents.find(e => e.title === eventTitle);
+        if (!event) return;
+
         setFormData(prev => {
             const isSelected = prev.selectedEvents.includes(eventTitle);
+
+            // If it's a Group event, it must be the ONLY event
+            if (event.model === 'Group') {
+                if (isSelected) {
+                    return { ...prev, selectedEvents: [], members: [], groupNo: '' };
+                } else {
+                    return { ...prev, selectedEvents: [eventTitle], members: [], groupNo: '' };
+                }
+            }
+
+            // If we are selecting a non-group event but a group event was already selected,
+            // we should clear the group event and members.
+            const hasGroupEvent = prev.selectedEvents.some(title => {
+                const e = availableEvents.find(ev => ev.title === title);
+                return e?.model === 'Group';
+            });
+
+            if (hasGroupEvent) {
+                return { ...prev, selectedEvents: [eventTitle], members: [], groupNo: '' };
+            }
+
             if (isSelected) {
                 return { ...prev, selectedEvents: prev.selectedEvents.filter(t => t !== eventTitle) };
             } else {
                 return { ...prev, selectedEvents: [...prev.selectedEvents, eventTitle] };
             }
+        });
+    };
+
+    const addMember = () => {
+        setFormData(prev => ({
+            ...prev,
+            members: [...prev.members, { name: '', universityCode: '' }]
+        }));
+    };
+
+    const removeMember = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            members: prev.members.filter((_, i) => i !== index)
+        }));
+    };
+
+    const updateMember = (index: number, field: keyof Member, value: string) => {
+        setFormData(prev => {
+            const newMembers = [...prev.members];
+            newMembers[index] = { ...newMembers[index], [field]: value };
+            return { ...prev, members: newMembers };
         });
     };
 
@@ -159,6 +214,11 @@ export default function Register() {
     // Split events for UI rendering
     const onstageEvents = availableEvents.filter(e => e.type === 'Onstage');
     const offstageEvents = availableEvents.filter(e => e.type === 'Offstage');
+
+    const isGroupSelected = formData.selectedEvents.some(title => {
+        const event = availableEvents.find(e => e.title === title);
+        return event?.model === 'Group';
+    });
 
     return (
         <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
@@ -379,6 +439,85 @@ export default function Register() {
                                             <div className="text-xs text-white/30 italic">No events currently scheduled.</div>
                                         )}
                                     </motion.div>
+
+                                    {/* Team Members Section for Group Events */}
+                                    <AnimatePresence>
+                                        {isGroupSelected && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="overflow-hidden space-y-4 pt-4 border-t border-white/5"
+                                            >
+                                                <div className="flex justify-between items-center">
+                                                    <label className="block text-xs font-bold uppercase tracking-widest text-white/70 font-sans">
+                                                        Group Details
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={addMember}
+                                                        className="text-[10px] text-accent-gold uppercase tracking-widest font-bold hover:text-white transition-all flex items-center gap-1"
+                                                    >
+                                                        <span className="material-symbols-outlined text-sm">add</span> Add Member
+                                                    </button>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-white/40 font-sans">Group Number *</label>
+                                                        <input
+                                                            className="w-full h-11 px-4 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold transition-all text-sm"
+                                                            placeholder="Enter Group Number (e.g. G-01)"
+                                                            value={formData.groupNo}
+                                                            onChange={(e) => setFormData({ ...formData, groupNo: e.target.value })}
+                                                            required
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <label className="block text-[10px] font-bold uppercase tracking-[0.15em] text-white/40 font-sans">Team Members</label>
+                                                        <div className="space-y-3">
+                                                            {formData.members.map((member, index) => (
+                                                                <motion.div
+                                                                    key={index}
+                                                                    initial={{ x: -10, opacity: 0 }}
+                                                                    animate={{ x: 0, opacity: 1 }}
+                                                                    className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 border border-white/5 bg-white/[0.02] relative group"
+                                                                >
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeMember(index)}
+                                                                        className="absolute -top-2 -right-2 w-5 h-5 bg-background-dark border border-white/10 rounded-full flex items-center justify-center text-white/40 hover:text-accent-red hover:border-accent-red transition-all scale-0 group-hover:scale-100 z-10"
+                                                                    >
+                                                                        <span className="material-symbols-outlined text-xs">close</span>
+                                                                    </button>
+                                                                    <input
+                                                                        className="w-full h-10 px-3 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold transition-all text-xs"
+                                                                        placeholder="Member Name"
+                                                                        value={member.name}
+                                                                        onChange={(e) => updateMember(index, 'name', e.target.value)}
+                                                                        required
+                                                                    />
+                                                                    <input
+                                                                        className="w-full h-10 px-3 rounded-none border border-white/10 bg-transparent text-white focus:border-accent-gold transition-all text-xs uppercase"
+                                                                        placeholder="University Code"
+                                                                        value={member.universityCode}
+                                                                        onChange={(e) => updateMember(index, 'universityCode', e.target.value)}
+                                                                        required
+                                                                    />
+                                                                </motion.div>
+                                                            ))}
+                                                            {formData.members.length === 0 && (
+                                                                <div className="text-center py-4 border border-dashed border-white/5 text-white/20 text-[10px] uppercase tracking-widest italic">
+                                                                    No members added yet.
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
 
                                     <motion.div variants={fadeUp} className="pt-6">
                                         <button

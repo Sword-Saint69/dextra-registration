@@ -42,6 +42,7 @@ interface Participant {
     group: string;
     universityCode: string; // Updated from college
     events: string[];
+    groupNo?: string;
 }
 
 interface UnionDayParticipant {
@@ -474,12 +475,13 @@ export default function AdminDashboard() {
             doc.text("DEXTRA 2026 - Participant Directory", 14, 20);
             autoTable(doc, {
                 startY: 25,
-                head: [['Name', 'Contact', 'Code', 'Group', 'Events']],
+                head: [['Name', 'Contact', 'Code', 'Group', 'Group No', 'Events']],
                 body: filteredParticipants.map(p => [
                     p.name,
                     p.email,
                     p.universityCode,
                     p.group || 'N/A',
+                    p.groupNo || 'N/A',
                     p.events.join(", ")
                 ]),
             });
@@ -521,6 +523,7 @@ export default function AdminDashboard() {
                 Email: p.email,
                 UniversityCode: p.universityCode,
                 Group: p.group || 'N/A',
+                GroupNo: p.groupNo || 'N/A',
                 Events: (p.events || []).join(", ")
             }));
             const worksheet = XLSX.utils.json_to_sheet(data);
@@ -991,11 +994,18 @@ export default function AdminDashboard() {
                                                         <span className="text-accent-gold">{participant.email}</span>
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-white/50">{participant.universityCode}</span>
-                                                            {participant.group && (
-                                                                <span className="px-1.5 py-0.5 bg-white/10 text-[9px] uppercase tracking-wider rounded-sm text-white/70">
-                                                                    {participant.group}
-                                                                </span>
-                                                            )}
+                                                            <div className="flex gap-1.5">
+                                                                {participant.group && (
+                                                                    <span className="px-1.5 py-0.5 bg-white/10 text-[9px] uppercase tracking-wider rounded-sm text-white/70">
+                                                                        {participant.group}
+                                                                    </span>
+                                                                )}
+                                                                {participant.groupNo && (
+                                                                    <span className="px-1.5 py-0.5 bg-accent-gold/10 border border-accent-gold/20 text-[9px] uppercase tracking-wider rounded-sm text-accent-gold">
+                                                                        G#{participant.groupNo}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
