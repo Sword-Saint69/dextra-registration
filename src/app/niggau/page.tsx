@@ -9,7 +9,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 // --- Types ---
-type EventModel = 'Individual' | 'Group';
+type EventModel = 'Individual' | 'Group' | 'Duet';
 type EventType = 'Onstage' | 'Offstage';
 
 interface MediaAsset {
@@ -754,6 +754,7 @@ export default function AdminDashboard() {
                                                 >
                                                     <option value="Individual" className="bg-[#181611]">Individual</option>
                                                     <option value="Group" className="bg-[#181611]">Group</option>
+                                                    <option value="Duet" className="bg-[#181611]">Duet</option>
                                                 </select>
                                             </div>
                                             <div className="space-y-2">

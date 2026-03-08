@@ -45,6 +45,7 @@ const headingLine: Variants = {
 interface EventData {
     id: string;
     title: string;
+    model: 'Individual' | 'Group' | 'Duet';
     type: 'Onstage' | 'Offstage';
 }
 
@@ -80,7 +81,7 @@ export default function Register() {
             const eventsList: EventData[] = [];
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                eventsList.push({ id: doc.id, title: data.title, type: data.type });
+                eventsList.push({ id: doc.id, title: data.title, type: data.type, model: data.model });
             });
             setAvailableEvents(eventsList);
         });
@@ -158,6 +159,7 @@ export default function Register() {
     // Split events for UI rendering
     const onstageEvents = availableEvents.filter(e => e.type === 'Onstage');
     const offstageEvents = availableEvents.filter(e => e.type === 'Offstage');
+    const duetEvents = availableEvents.filter(e => e.model === 'Duet');
 
     return (
         <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
@@ -364,6 +366,29 @@ export default function Register() {
                                                                 className={`px-3 py-1.5 text-xs border transition-all 
                                                                     ${isSelected ? 'border-accent-gold bg-accent-gold/10 text-accent-gold' :
                                                                         isDisabled ? 'border-white/5 text-white/20 opacity-50 cursor-not-allowed' : 'border-white/10 text-white/60 hover:border-white/30'}`}
+                                                            >
+                                                                {event.title}
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Duet Events */}
+                                        {duetEvents.length > 0 && (
+                                            <div className="space-y-2 pt-2">
+                                                <h4 className="text-[10px] text-white/40 uppercase tracking-widest border-b border-white/5 pb-1">Duet</h4>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {duetEvents.map((event) => {
+                                                        const isSelected = formData.selectedEvents.includes(event.title);
+                                                        return (
+                                                            <button
+                                                                type="button"
+                                                                key={event.id}
+                                                                onClick={() => toggleEvent(event.title)}
+                                                                disabled={isSubmitting}
+                                                                className={`px-3 py-1.5 text-xs border transition-all ${isSelected ? 'border-accent-gold bg-accent-gold/10 text-accent-gold' : 'border-white/10 text-white/60 hover:border-white/30'}`}
                                                             >
                                                                 {event.title}
                                                             </button>
