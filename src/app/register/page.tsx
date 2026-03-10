@@ -78,6 +78,9 @@ export default function Register() {
         groupNo: ''
     });
 
+    const [isRegOpen, setIsRegOpen] = useState(true);
+    const [isCheckingReg, setIsCheckingReg] = useState(true);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
@@ -92,7 +95,23 @@ export default function Register() {
             });
             setAvailableEvents(eventsList);
         });
-        return () => unsubscribe();
+
+        // Listen to Registration Settings
+        const regSettingsDoc = doc(db, 'settings', 'registration');
+        const unsubscribeReg = onSnapshot(regSettingsDoc, (snapshot) => {
+            if (snapshot.exists()) {
+                setIsRegOpen(snapshot.data().isOpen);
+            }
+            setIsCheckingReg(false);
+        }, (error) => {
+            console.error("Error checking registration status:", error);
+            setIsCheckingReg(false);
+        });
+
+        return () => {
+            unsubscribe();
+            unsubscribeReg();
+        };
     }, []);
 
     // Registration Handler
@@ -303,6 +322,33 @@ export default function Register() {
                                     Return Home
                                 </Link>
                             </motion.div>
+                        ) : !isRegOpen && !isCheckingReg ? (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex flex-col items-center justify-center text-center py-20 border border-red-500/20 bg-red-500/5 p-8"
+                            >
+                                <div className="w-16 h-16 rounded-full border border-red-500/50 flex items-center justify-center mb-6 text-red-500">
+                                    <span className="material-symbols-outlined text-3xl">lock</span>
+                                </div>
+                                <h2 className="text-white font-display text-3xl font-bold mb-4">Registration Closed</h2>
+                                <p className="text-white/60 font-sans text-sm">
+                                    We&apos;re sorry, but registrations for DEXTRA 2026 are currently closed. Please check back later or contact the coordination team for more information.
+                                </p>
+                                <Link href="/" className="mt-8 text-accent-gold uppercase tracking-widest text-xs font-bold hover:text-white transition-colors flex items-center">
+                                    <span className="material-symbols-outlined mr-2 text-sm">home</span>
+                                    Back to Home
+                                </Link>
+                            </motion.div>
+                        ) : isCheckingReg ? (
+                            <div className="flex flex-col items-center justify-center py-20">
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    className="w-10 h-10 border-2 border-accent-gold border-t-transparent rounded-full mb-4"
+                                />
+                                <p className="text-white/40 text-xs uppercase tracking-widest font-bold">Checking Registration Status...</p>
+                            </div>
                         ) : (
                             <>
                                 <div className="mb-10 relative">

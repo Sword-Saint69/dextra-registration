@@ -43,6 +43,7 @@ interface Participant {
     universityCode: string; // Updated from college
     events: string[];
     groupNo?: string;
+    members?: ParticipantMember[]; // Added members support
 }
 
 interface UnionDayParticipant {
@@ -55,11 +56,16 @@ interface UnionDayParticipant {
     email: string;
     phone: string;
     registrationType: 'individual' | 'group';
-    members?: Member[];
+    members?: UnionDayMember[];
     timestamp: any;
 }
 
-interface Member {
+interface ParticipantMember {
+    name: string;
+    universityCode: string;
+}
+
+interface UnionDayMember {
     name: string;
     prpCode: string;
     department: string;
@@ -86,6 +92,7 @@ export default function AdminDashboard() {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterGroup, setFilterGroup] = useState('All');
     const [filterEvent, setFilterEvent] = useState('All');
+    const [isRegOpen, setIsRegOpen] = useState(true);
 
     // Loading states
     const [loading, setLoading] = useState(false);
@@ -187,12 +194,21 @@ export default function AdminDashboard() {
             setRecreationMedia(liveRecreation);
         });
 
+        // Listen to Registration Settings
+        const regSettingsDoc = doc(db, 'settings', 'registration');
+        const unsubscribeRegSettings = onSnapshot(regSettingsDoc, (snapshot) => {
+            if (snapshot.exists()) {
+                setIsRegOpen(snapshot.data().isOpen);
+            }
+        });
+
         return () => {
             unsubscribeEvents();
             unsubscribeParticipants();
             unsubscribeMedia();
             unsubscribeUnionDay();
             unsubscribeRecreation();
+            unsubscribeRegSettings();
         };
     }, []);
 
@@ -300,6 +316,28 @@ export default function AdminDashboard() {
             await deleteDoc(doc(db, 'recreation_media', id));
         } catch (error) {
             console.error("Error deleting recreation media:", error);
+        }
+    };
+
+    const handleToggleRegistration = async () => {
+        try {
+            const regRef = doc(db, 'settings', 'registration');
+            await updateDoc(regRef, {
+                isOpen: !isRegOpen
+            });
+        } catch (error) {
+            console.error("Error toggling registration:", error);
+            // If document doesn't exist, create it
+            try {
+                const regRef = doc(db, 'settings', 'registration');
+                const { setDoc } = await import('firebase/firestore');
+                await setDoc(regRef, {
+                    isOpen: !isRegOpen
+                });
+            } catch (innerError) {
+                console.error("Failed to create settings document:", innerError);
+                alert("Failed to update registration status.");
+            }
         }
     };
 
@@ -475,22 +513,25 @@ export default function AdminDashboard() {
             doc.text("DEXTRA 2026 - Participant Directory", 14, 20);
             autoTable(doc, {
                 startY: 25,
-                head: [['Name', 'Contact', 'Code', 'Group', 'Group No', 'Events']],
+                head: [['Name', 'Contact', 'Code', 'Group', 'G#', 'Events', 'Members']],
                 body: filteredParticipants.map(p => [
                     p.name,
                     p.email,
                     p.universityCode,
                     p.group || 'N/A',
                     p.groupNo || 'N/A',
-                    p.events.join(", ")
+                    p.events.join(", "),
+                    (p.members || []).map(m => `${m.name} (${m.universityCode})`).join("\n") || 'N/A'
                 ]),
+                styles: { fontSize: 8 },
+                columnStyles: { 6: { cellWidth: 40 } }
             });
             doc.save("dextra_participants_report.pdf");
         } else if (activeTab === 'union-day') {
             doc.text("DEXTRA 2026 - Union Day Participants", 14, 20);
             autoTable(doc, {
                 startY: 25,
-                head: [['Name', 'PRP Code', 'Dept/Sem', 'Event', 'Email', 'Phone', 'Type']],
+                head: [['Name', 'PRP Code', 'Dept/Sem', 'Event', 'Email', 'Phone', 'Type', 'Members']],
                 body: filteredUnionDayParticipants.map(p => [
                     p.name,
                     p.prpCode,
@@ -498,8 +539,11 @@ export default function AdminDashboard() {
                     p.eventName,
                     p.email,
                     p.phone,
-                    p.registrationType || 'individual'
+                    p.registrationType || 'individual',
+                    (p.members || []).map(m => `${m.name} (${m.prpCode})`).join("\n") || 'N/A'
                 ]),
+                styles: { fontSize: 8 },
+                columnStyles: { 7: { cellWidth: 40 } }
             });
             doc.save("dextra_union_day_report.pdf");
         }
@@ -524,7 +568,8 @@ export default function AdminDashboard() {
                 UniversityCode: p.universityCode,
                 Group: p.group || 'N/A',
                 GroupNo: p.groupNo || 'N/A',
-                Events: (p.events || []).join(", ")
+                Events: (p.events || []).join(", "),
+                Members: (p.members || []).map(m => `${m.name} (${m.universityCode})`).join(", ") || 'N/A'
             }));
             const worksheet = XLSX.utils.json_to_sheet(data);
             const workbook = XLSX.utils.book_new();
@@ -539,7 +584,8 @@ export default function AdminDashboard() {
                 Event: p.eventName,
                 Email: p.email,
                 Phone: p.phone,
-                Type: p.registrationType || 'individual'
+                Type: p.registrationType || 'individual',
+                Members: (p.members || []).map(m => `${m.name} (${m.prpCode})`).join(", ") || 'N/A'
             }));
             const worksheet = XLSX.utils.json_to_sheet(data);
             const workbook = XLSX.utils.book_new();
@@ -611,52 +657,64 @@ export default function AdminDashboard() {
         <div className="flex flex-col gap-8">
 
             {/* Tab Navigation */}
-            <div className="flex border-b border-white/10 gap-8">
-                <button
-                    onClick={() => setActiveTab('events')}
-                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'events' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                >
-                    Manage Events
-                    {activeTab === 'events' && (
-                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                    )}
-                </button>
-                <button
-                    onClick={() => setActiveTab('participants')}
-                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'participants' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                >
-                    Participants
-                    {activeTab === 'participants' && (
-                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                    )}
-                </button>
-                <button
-                    onClick={() => setActiveTab('media')}
-                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'media' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                >
-                    Media Library
-                    {activeTab === 'media' && (
-                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                    )}
-                </button>
-                <button
-                    onClick={() => setActiveTab('union-day')}
-                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'union-day' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                >
-                    Union Day
-                    {activeTab === 'union-day' && (
-                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                    )}
-                </button>
-                <button
-                    onClick={() => setActiveTab('recreation')}
-                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'recreation' ? 'text-pink-500' : 'text-white/50 hover:text-white/80'}`}
-                >
-                    Recreation
-                    {activeTab === 'recreation' && (
-                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-500" />
-                    )}
-                </button>
+            <div className="flex flex-col md:flex-row border-b border-white/10 gap-8 justify-between items-center">
+                <div className="flex gap-8">
+                    <button
+                        onClick={() => setActiveTab('events')}
+                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'events' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                    >
+                        Manage Events
+                        {activeTab === 'events' && (
+                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('participants')}
+                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'participants' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                    >
+                        Participants
+                        {activeTab === 'participants' && (
+                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('media')}
+                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'media' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                    >
+                        Media Library
+                        {activeTab === 'media' && (
+                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('union-day')}
+                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'union-day' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                    >
+                        Union Day
+                        {activeTab === 'union-day' && (
+                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('recreation')}
+                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'recreation' ? 'text-pink-500' : 'text-white/50 hover:text-white/80'}`}
+                    >
+                        Recreation
+                        {activeTab === 'recreation' && (
+                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-500" />
+                        )}
+                    </button>
+                </div>
+
+                <div className="pb-4">
+                    <button
+                        onClick={handleToggleRegistration}
+                        className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all ${isRegOpen ? 'border-green-500/50 text-green-400 bg-green-500/5 hover:bg-green-500/10' : 'border-red-500/50 text-red-400 bg-red-500/5 hover:bg-red-500/10'}`}
+                    >
+                        <span className={`w-2 h-2 rounded-full ${isRegOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                        Registration: {isRegOpen ? 'Open' : 'Closed'}
+                    </button>
+                </div>
             </div>
 
             <AnimatePresence mode="wait">

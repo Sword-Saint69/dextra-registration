@@ -1,11 +1,11 @@
 "use client";
 
 import { motion, useScroll, useTransform, Easing, Variants, AnimatePresence } from 'framer-motion';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import RedThread from '@/components/RedThread';
 import Navbar from '@/components/Navbar';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 // Custom Easing (Luxury Ease)
@@ -60,6 +60,9 @@ export default function UnionDayRegister() {
     });
 
     const yParallax = useTransform(scrollYProgress, [0, 1], [0, 50]);
+
+    const [isRegOpen, setIsRegOpen] = useState(true);
+    const [isCheckingReg, setIsCheckingReg] = useState(true);
 
     // Form State
     const [registrationType, setRegistrationType] = useState<'individual' | 'group'>('individual');
@@ -134,6 +137,22 @@ export default function UnionDayRegister() {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
+
+    useEffect(() => {
+        // Listen to Registration Settings
+        const regSettingsDoc = doc(db, 'settings', 'registration');
+        const unsubscribeReg = onSnapshot(regSettingsDoc, (snapshot) => {
+            if (snapshot.exists()) {
+                setIsRegOpen(snapshot.data().isOpen);
+            }
+            setIsCheckingReg(false);
+        }, (error) => {
+            console.error("Error checking registration status:", error);
+            setIsCheckingReg(false);
+        });
+
+        return () => unsubscribeReg();
+    }, []);
 
     return (
         <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden bg-[#0a0a0a]">
@@ -261,6 +280,33 @@ export default function UnionDayRegister() {
                                     Return to Home
                                 </Link>
                             </motion.div>
+                        ) : !isRegOpen && !isCheckingReg ? (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex flex-col items-center justify-center text-center py-20 border border-red-500/20 bg-red-500/5 p-8"
+                            >
+                                <div className="w-16 h-16 rounded-full border border-red-500/50 flex items-center justify-center mb-6 text-red-500">
+                                    <span className="material-symbols-outlined text-3xl">lock</span>
+                                </div>
+                                <h2 className="text-white font-display text-3xl font-bold mb-4">Registration Closed</h2>
+                                <p className="text-white/60 font-sans text-sm">
+                                    We&apos;re sorry, but registrations for Union Day 2026 are currently closed. Please check back later or contact the coordination team for more information.
+                                </p>
+                                <Link href="/" className="mt-8 text-accent-gold uppercase tracking-widest text-xs font-bold hover:text-white transition-colors flex items-center">
+                                    <span className="material-symbols-outlined mr-2 text-sm">home</span>
+                                    Back to Home
+                                </Link>
+                            </motion.div>
+                        ) : isCheckingReg ? (
+                            <div className="flex flex-col items-center justify-center py-20">
+                                <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                    className="w-10 h-10 border-2 border-accent-gold border-t-transparent rounded-full mb-4"
+                                />
+                                <p className="text-white/40 text-xs uppercase tracking-widest font-bold">Checking Registration Status...</p>
+                            </div>
                         ) : (
                             <div className="max-w-md w-full mx-auto">
                                 <div className="mb-10 relative">
