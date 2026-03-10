@@ -1,34 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
 
 export default function CustomCursor() {
-    const dotRef = useRef<HTMLDivElement>(null);
-    const outlineRef = useRef<HTMLDivElement>(null);
+    const cursorX = useMotionValue(-100);
+    const cursorY = useMotionValue(-100);
+
+    const springConfig = { damping: 25, stiffness: 250 };
+    const cursorXSpring = useSpring(cursorX, springConfig);
+    const cursorYSpring = useSpring(cursorY, springConfig);
+
     const [isHovering, setIsHovering] = useState(false);
 
     useEffect(() => {
         const moveCursor = (e: MouseEvent) => {
-            const { clientX, clientY } = e;
-            if (dotRef.current) {
-                dotRef.current.style.left = `${clientX}px`;
-                dotRef.current.style.top = `${clientY}px`;
-            }
-            if (outlineRef.current) {
-                outlineRef.current.animate({
-                    left: `${clientX}px`,
-                    top: `${clientY}px`
-                }, { duration: 500, fill: "forwards" });
-            }
+            cursorX.set(e.clientX);
+            cursorY.set(e.clientY);
         };
 
         const handleHover = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            if (target.closest('button, a, .magnetic')) {
-                setIsHovering(true);
-            } else {
-                setIsHovering(false);
-            }
+            const interactive = target.closest('button, a, .magnetic, input, select');
+            setIsHovering(!!interactive);
         };
 
         window.addEventListener('mousemove', moveCursor);
@@ -37,20 +31,37 @@ export default function CustomCursor() {
             window.removeEventListener('mousemove', moveCursor);
             window.removeEventListener('mouseover', handleHover);
         };
-    }, []);
+    }, [cursorX, cursorY]);
 
     return (
-        <>
-            <div
-                ref={dotRef}
-                className="cursor-dot -translate-x-1/2 -translate-y-1/2"
-                style={{ transform: isHovering ? 'scale(2) translate(-25%, -25%)' : 'scale(1) translate(-50%, -50%)' }}
-            ></div>
-            <div
-                ref={outlineRef}
-                className="cursor-outline -translate-x-1/2 -translate-y-1/2 transition-transform duration-300"
-                style={{ transform: isHovering ? 'scale(1.5) translate(-33%, -33%)' : 'scale(1) translate(-50%, -50%)' }}
-            ></div>
-        </>
+        <div className="fixed inset-0 pointer-events-none z-[9999]">
+            <motion.div
+                className="fixed top-0 left-0 w-8 h-8 rounded-full border border-accent-gold/50 mix-blend-difference"
+                style={{
+                    x: cursorXSpring,
+                    y: cursorYSpring,
+                    translateX: "-50%",
+                    translateY: "-50%",
+                }}
+                animate={{
+                    scale: isHovering ? 2 : 1,
+                    backgroundColor: isHovering ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0)",
+                }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+            />
+            <motion.div
+                className="fixed top-0 left-0 w-1.5 h-1.5 bg-accent-gold rounded-full"
+                style={{
+                    x: cursorX,
+                    y: cursorY,
+                    translateX: "-50%",
+                    translateY: "-50%",
+                }}
+                animate={{
+                    scale: isHovering ? 0 : 1,
+                    opacity: isHovering ? 0 : 1,
+                }}
+            />
+        </div>
     );
 }

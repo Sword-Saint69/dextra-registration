@@ -2,26 +2,29 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { luxuryEase } from '@/lib/animations';
 
 export default function PageLoader() {
     const [isLoading, setIsLoading] = useState(true);
     const [progress, setProgress] = useState(0);
 
     useEffect(() => {
-        if (isLoading) {
-            document.body.style.overflow = "hidden";
-        } else {
+        // Hydration-safe session check
+        const hasRun = typeof window !== 'undefined' && sessionStorage.getItem('dextra_loader_run');
+        if (hasRun && isLoading) {
+            Promise.resolve().then(() => {
+                setIsLoading(false);
+            });
             document.body.style.overflow = "";
-        }
-    }, [isLoading]);
-
-    useEffect(() => {
-        // Prevent loader from running multiple times per session
-        const hasRun = sessionStorage.getItem('dextra_loader_run');
-        if (hasRun) {
-            setIsLoading(false);
             return;
         }
+
+        if (!isLoading) {
+            document.body.style.overflow = "";
+            return;
+        }
+
+        document.body.style.overflow = "hidden";
 
         const duration = 2500;
         const startTime = Date.now();
@@ -44,8 +47,11 @@ export default function PageLoader() {
             setProgress(currentProgress);
         }, 16);
 
-        return () => clearInterval(interval);
-    }, []);
+        return () => {
+            clearInterval(interval);
+            document.body.style.overflow = "";
+        };
+    }, [isLoading]);
 
     return (
         <AnimatePresence>
@@ -59,7 +65,7 @@ export default function PageLoader() {
                     }}
                     transition={{
                         duration: 1,
-                        ease: [0.22, 1, 0.36, 1]
+                        ease: luxuryEase
                     }}
                     className="fixed inset-0 z-[99999] bg-[#121212] font-display text-slate-100 antialiased overflow-hidden"
                 >

@@ -25,6 +25,7 @@ export default function Magnetic({ children }: { children: React.ReactNode }) {
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
             animate={{ x: position.x, y: position.y }}
+            whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
             className="magnetic"
             style={{ display: 'inline-block' }}

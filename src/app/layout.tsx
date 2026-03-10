@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   description: 'DEXTRA Arts Fest 2026',
 }
 
+import TransitionProvider from '@/components/TransitionProvider'
+
 export default function RootLayout({
   children,
 }: {
@@ -39,7 +41,9 @@ export default function RootLayout({
         <ScrollProgress />
         <SmoothScroll>
           <div className="fixed inset-0 pointer-events-none z-[100] opacity-[0.03] mix-blend-overlay bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
-          {children}
+          <TransitionProvider>
+            {children}
+          </TransitionProvider>
         </SmoothScroll>
       </body>
     </html>

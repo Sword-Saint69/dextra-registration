@@ -1,45 +1,13 @@
 "use client";
 
-import { motion, useScroll, useTransform, Easing, Variants } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import CustomCursor from '@/components/CustomCursor';
 import Magnetic from '@/components/Magnetic';
 
-// Custom Easing (Luxury Ease)
-const luxuryEase: Easing = [0.22, 1, 0.36, 1];
-
-// Animation Variants
-const getStaggerContainer = (delay: number) => ({
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.12,
-      delayChildren: delay,
-    }
-  }
-});
-
-const fadeUp: Variants = {
-  hidden: { y: 20, opacity: 0 },
-  show: {
-    y: 0,
-    opacity: 1,
-    transition: { duration: 0.8, ease: luxuryEase }
-  }
-};
-
-const headingLine: Variants = {
-  hidden: { y: 60, opacity: 0, filter: "blur(8px)" },
-  show: {
-    y: 0,
-    opacity: 1,
-    filter: "blur(0px)",
-    transition: { duration: 1.0, ease: luxuryEase }
-  }
-};
+import { luxuryEase, fadeUp, getStaggerContainer } from '@/lib/animations';
 
 // Interface for particle initial states
 interface ParticleState {
@@ -52,6 +20,29 @@ interface ParticleState {
 }
 
 
+// Character-level stagger reveal
+const CharReveal = ({ text, delay = 0, className = "" }: { text: string, delay?: number, className?: string }) => {
+  return (
+    <div className={`overflow-hidden flex flex-wrap ${className}`}>
+      {text.split("").map((char, i) => (
+        <motion.span
+          key={i}
+          initial={{ y: "110%", filter: "blur(4px)", opacity: 0 }}
+          animate={{ y: 0, filter: "blur(0px)", opacity: 1 }}
+          transition={{
+            duration: 0.8,
+            ease: luxuryEase,
+            delay: delay + (i * 0.03)
+          }}
+          className="inline-block"
+        >
+          {char === " " ? "\u00A0" : char}
+        </motion.span>
+      ))}
+    </div>
+  );
+};
+
 export default function Home() {
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -63,7 +54,17 @@ export default function Home() {
   const yParallax = useTransform(scrollYProgress, [0, 1], [0, -80]); // Depth increases
 
   // State for particles, synchronized loading, and scroll
-  const [particles, setParticles] = useState<ParticleState[]>([]);
+  const [particles] = useState<ParticleState[]>(() => {
+    if (typeof window === 'undefined') return [];
+    return Array.from({ length: 8 }).map((_, i) => ({
+      id: i,
+      startX: `${Math.random() * 100}%`,
+      endX: `${(Math.random() * 100 - 50) + 50}%`,
+      scale: Math.random() * 0.5 + 0.5,
+      duration: Math.random() * 10 + 15,
+      delay: Math.random() * 10
+    }));
+  });
   const [isReady, setIsReady] = useState(false);
   const [animDelay, setAnimDelay] = useState(0.2);
   const [scrolled, setScrolled] = useState(false);
@@ -77,26 +78,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // Synchronize Animation with PageLoader
-    const hasRun = sessionStorage.getItem('dextra_loader_run');
-    if (!hasRun) {
-      setAnimDelay(3);
-    } else {
-      setAnimDelay(0.2);
-    }
-    setIsReady(true);
-
-    // Generate particles only on the client
-    const generatedParticles = Array.from({ length: 8 }).map((_, i) => ({
-      id: i,
-      startX: `${Math.random() * 100}%`,
-      endX: `${(Math.random() * 100 - 50) + 50}%`,
-      scale: Math.random() * 0.5 + 0.5,
-      duration: Math.random() * 10 + 15,
-      delay: Math.random() * 10
-    }));
-    // eslint-disable-next-line
-    setParticles(generatedParticles);
+    Promise.resolve().then(() => {
+      setIsReady(true);
+      if (typeof window !== 'undefined') {
+        const hasRun = sessionStorage.getItem('dextra_loader_run');
+        if (!hasRun) {
+          setAnimDelay(3);
+        }
+      }
+    });
   }, []);
 
   return (
@@ -165,19 +155,18 @@ export default function Home() {
               </motion.span>
 
               <h1 className="text-white font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.1] mb-6">
-                <div className="overflow-hidden flex flex-wrap gap-x-[0.3em]">
-                  {"Different Paths.".split(" ").map((word, i) => (
-                    <motion.span
-                      key={i}
-                      variants={headingLine}
-                      className="block pb-2"
-                    >
-                      {word}
-                    </motion.span>
-                  ))}
-                </div>
-                <div className="overflow-hidden flex items-center gap-x-[0.3em]">
-                  <motion.span variants={headingLine} className="block relative w-fit">
+                <CharReveal
+                  text="Different Paths."
+                  delay={animDelay + 0.2}
+                  className="gap-x-[0.02em]"
+                />
+                <div className="flex items-center gap-x-[0.3em] overflow-hidden">
+                  <motion.span
+                    initial={{ y: "110%", opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.8, ease: luxuryEase, delay: animDelay + 0.8 }}
+                    className="block relative w-fit"
+                  >
                     {/* Shimmer implementation */}
                     <motion.span
                       className="italic relative z-10 text-transparent bg-clip-text pb-2"
@@ -198,15 +187,11 @@ export default function Home() {
                       One
                     </motion.span>
                   </motion.span>
-                  {"Celebration.".split(" ").map((word, i) => (
-                    <motion.span
-                      key={i}
-                      variants={headingLine}
-                      className="block"
-                    >
-                      {word}
-                    </motion.span>
-                  ))}
+                  <CharReveal
+                    text="Celebration."
+                    delay={animDelay + 1.1}
+                    className="gap-x-[0.02em]"
+                  />
                 </div>
               </h1>
 

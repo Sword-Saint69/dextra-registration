@@ -1,23 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence, Easing, Variants } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Magnetic from './Magnetic';
 
-// Luxury Easing
-const luxuryEase: Easing = [0.22, 1, 0.36, 1];
-
-const navReveal: Variants = {
-    hidden: { y: -20, opacity: 0, filter: "blur(4px)" },
-    show: {
-        y: 0,
-        opacity: 1,
-        filter: "blur(0px)",
-        transition: { duration: 0.8, ease: luxuryEase }
-    }
-};
+import { luxuryEase, navReveal } from '@/lib/animations';
 
 const mobileMenuVariants: Variants = {
     closed: {
@@ -47,8 +36,9 @@ const mobileItemVariants: Variants = {
 
 const menuItems = [
     { name: 'Home', path: '/' },
+    { name: 'Scoreboard', path: '/scoreboard' },
+    { name: 'Winners', path: '/winners' },
     { name: 'Events', path: '/events' },
-    { name: 'Union Day', path: '/union-day' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'Photo recreation', path: '/photo-recreation' },
     { name: 'Certificates', path: '/certificates' },
@@ -70,7 +60,9 @@ export default function Navbar() {
 
     // Close menu on route change
     useEffect(() => {
-        setIsOpen(false);
+        requestAnimationFrame(() => {
+            setIsOpen(false);
+        });
     }, [pathname]);
 
     return (

@@ -1,8 +1,11 @@
 "use client";
 
-import { motion, Easing } from 'framer-motion';
+import { motion, Easing, useScroll, useTransform } from 'framer-motion';
 
 export default function RedThread() {
+    const { scrollYProgress } = useScroll();
+    const pathLength = useTransform(scrollYProgress, [0, 1], [0.4, 1]);
+
     const pathData = "M -100 100 C 200 400, 400 -200, 600 500 C 800 1000, 900 300, 1200 600";
     const luxuryEase: Easing = [0.77, 0, 0.175, 1]; // From user prompt
 
@@ -86,6 +89,7 @@ export default function RedThread() {
                         stroke="#FFEAA7" // Bright gold/white core
                         strokeWidth="2"
                         className="mix-blend-screen opacity-90"
+                        style={{ pathLength }}
                         initial={{ pathLength: 0 }}
                         animate={{ pathLength: 1 }}
                         transition={{ duration: 1.6, ease: luxuryEase }}
