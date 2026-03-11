@@ -141,7 +141,11 @@ export default function AdminDashboard() {
                 liveParticipants.push({
                     id: docSnap.id,
                     ...data,
-                    universityCode: data.universityCode || data.college || data.university_code || ''
+                    universityCode: data.universityCode || data.college || data.university_code || data.prpCode || data.univ_code || '',
+                    members: (data.members || []).map((m: any) => ({
+                        ...m,
+                        universityCode: m.universityCode || m.college || m.university_code || m.prpCode || m.univ_code || ''
+                    }))
                 } as Participant);
             });
             setParticipants(liveParticipants);
@@ -172,7 +176,16 @@ export default function AdminDashboard() {
         const unsubscribeUnionDay = onSnapshot(unionDayQuery, (snapshot) => {
             const liveUnionDay: UnionDayParticipant[] = [];
             snapshot.forEach((docSnap) => {
-                liveUnionDay.push({ id: docSnap.id, ...docSnap.data() } as UnionDayParticipant);
+                const data = docSnap.data();
+                liveUnionDay.push({ 
+                    id: docSnap.id, 
+                    ...data,
+                    prpCode: data.prpCode || data.universityCode || data.college || data.university_code || data.univ_code || '',
+                    members: (data.members || []).map((m: any) => ({
+                        ...m,
+                        prpCode: m.prpCode || m.universityCode || m.college || m.university_code || m.univ_code || ''
+                    }))
+                } as UnionDayParticipant);
             });
             setUnionDayParticipants(liveUnionDay);
         });
