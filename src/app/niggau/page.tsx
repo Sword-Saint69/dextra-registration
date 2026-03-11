@@ -132,11 +132,9 @@ export default function AdminDashboard() {
             const liveParticipants: Participant[] = [];
             snapshot.forEach((docSnap) => {
                 const data = docSnap.data();
-                // Map 'college' from Firestore to 'universityCode' in the client-side interface
                 liveParticipants.push({
                     id: docSnap.id,
-                    ...data,
-                    universityCode: data.college // Assuming Firestore still stores it as 'college'
+                    ...data
                 } as Participant);
             });
             setParticipants(liveParticipants);
