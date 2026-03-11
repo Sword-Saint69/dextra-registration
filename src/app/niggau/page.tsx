@@ -44,6 +44,7 @@ interface Participant {
     universityCode: string; // Updated from college
     events: string[];
     groupNo?: string;
+    members?: ParticipantMember[]; // Added members support
 }
 
 interface UnionDayParticipant {
@@ -58,6 +59,11 @@ interface UnionDayParticipant {
     registrationType: 'individual' | 'group';
     members?: Member[];
     timestamp: any;
+}
+
+interface ParticipantMember {
+    name: string;
+    universityCode: string;
 }
 
 interface Member {
@@ -134,7 +140,8 @@ export default function AdminDashboard() {
                 const data = docSnap.data();
                 liveParticipants.push({
                     id: docSnap.id,
-                    ...data
+                    ...data,
+                    universityCode: data.universityCode || data.college || data.university_code || ''
                 } as Participant);
             });
             setParticipants(liveParticipants);
@@ -474,14 +481,15 @@ export default function AdminDashboard() {
             doc.text("DEXTRA 2026 - Participant Directory", 14, 20);
             autoTable(doc, {
                 startY: 25,
-                head: [['Name', 'Contact', 'Code', 'Group', 'Group No', 'Events']],
+                head: [['Name', 'Contact', 'Code', 'Group', 'Group No', 'Events', 'Members']],
                 body: filteredParticipants.map(p => [
                     p.name,
                     p.email,
                     p.universityCode,
                     p.group || 'N/A',
                     p.groupNo || 'N/A',
-                    p.events.join(", ")
+                    p.events.join(", "),
+                    (p.members || []).map(m => `${m.name} (${m.universityCode})`).join(", ") || 'N/A'
                 ]),
             });
             doc.save("dextra_participants_report.pdf");
@@ -489,7 +497,7 @@ export default function AdminDashboard() {
             doc.text("DEXTRA 2026 - Union Day Participants", 14, 20);
             autoTable(doc, {
                 startY: 25,
-                head: [['Name', 'PRP Code', 'Dept/Sem', 'Event', 'Email', 'Phone', 'Type']],
+                head: [['Name', 'University Code', 'Dept/Sem', 'Event', 'Email', 'Phone', 'Type', 'Members']],
                 body: filteredUnionDayParticipants.map(p => [
                     p.name,
                     p.prpCode,
@@ -497,7 +505,8 @@ export default function AdminDashboard() {
                     p.eventName,
                     p.email,
                     p.phone,
-                    p.registrationType || 'individual'
+                    p.registrationType || 'individual',
+                    (p.members || []).map(m => `${m.name} (${m.prpCode})`).join(", ") || 'N/A'
                 ]),
             });
             doc.save("dextra_union_day_report.pdf");
@@ -523,7 +532,8 @@ export default function AdminDashboard() {
                 UniversityCode: p.universityCode,
                 Group: p.group || 'N/A',
                 GroupNo: p.groupNo || 'N/A',
-                Events: (p.events || []).join(", ")
+                Events: (p.events || []).join(", "),
+                Members: (p.members || []).map(m => `${m.name} (${m.universityCode})`).join(", ") || 'N/A'
             }));
             const worksheet = XLSX.utils.json_to_sheet(data);
             const workbook = XLSX.utils.book_new();
@@ -532,13 +542,14 @@ export default function AdminDashboard() {
         } else if (activeTab === 'union-day') {
             const data = filteredUnionDayParticipants.map(p => ({
                 Name: p.name,
-                PRPCode: p.prpCode,
+                UniversityCode: p.prpCode,
                 Department: p.department,
                 Semester: p.semester,
                 Event: p.eventName,
                 Email: p.email,
                 Phone: p.phone,
-                Type: p.registrationType || 'individual'
+                Type: p.registrationType || 'individual',
+                Members: (p.members || []).map(m => `${m.name} (${m.prpCode})`).join(", ") || 'N/A'
             }));
             const worksheet = XLSX.utils.json_to_sheet(data);
             const workbook = XLSX.utils.book_new();
