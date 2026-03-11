@@ -97,7 +97,8 @@ export default function CertificateSearch() {
                             }
                         }}
                         className="w-full max-w-2xl text-center"
-                    >
+                    >   
+                    
                         <motion.span
                             variants={fadeUp}
                             className="inline-block text-accent-gold font-sans font-bold tracking-[0.4em] text-[10px] uppercase mb-8"

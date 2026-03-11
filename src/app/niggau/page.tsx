@@ -12,22 +12,6 @@ import autoTable from 'jspdf-autotable';
 type EventModel = 'Individual' | 'Group' | 'Duet';
 type EventType = 'Onstage' | 'Offstage';
 
-interface ParticipantMember {
-    name: string;
-    universityCode: string;
-}
-
-interface ScoringRules {
-    individual: { first: number, second: number, third: number };
-    group: { first: number, second: number, third: number };
-}
-
-interface House {
-    id: string;
-    name: string;
-    points: number;
-}
-
 interface MediaAsset {
     id: string;
     publicId: string;
@@ -36,7 +20,8 @@ interface MediaAsset {
     category: string;
     size: 'square' | 'tall' | 'wide';
     timestamp: string;
-    image?: string; // Fallback for older documents
+    image?: string; 
+  
 }
 
 interface Event {
@@ -49,11 +34,6 @@ interface Event {
     endTime?: string;
     description?: string;
     location?: string;
-    winners?: {
-        first?: string;
-        second?: string;
-        third?: string;
-    };
 }
 
 interface Participant {
@@ -64,10 +44,28 @@ interface Participant {
     universityCode: string; // Updated from college
     events: string[];
     groupNo?: string;
-    members?: ParticipantMember[]; // Added members support
 }
 
-// --- Animation Config ---
+interface UnionDayParticipant {
+    id: string;
+    name: string;
+    prpCode: string;
+    department: string;
+    semester: string;
+    eventName: string;
+    email: string;
+    phone: string;
+    registrationType: 'individual' | 'group';
+    members?: Member[];
+    timestamp: any;
+}
+
+interface Member {
+    name: string;
+    prpCode: string;
+    department: string;
+    semester: string;
+}
 
 // --- Animation Config ---
 const luxuryEase: Easing = [0.22, 1, 0.36, 1];
@@ -78,22 +76,17 @@ const fadeUp = {
 };
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media' | 'recreation' | 'results'>('events');
+    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media' | 'union-day' | 'recreation'>('events');
 
     // State
     const [events, setEvents] = useState<Event[]>([]);
     const [participants, setParticipants] = useState<Participant[]>([]);
+    const [unionDayParticipants, setUnionDayParticipants] = useState<UnionDayParticipant[]>([]);
     const [media, setMedia] = useState<MediaAsset[]>([]);
     const [recreationMedia, setRecreationMedia] = useState<MediaAsset[]>([]);
-    const [houses, setHouses] = useState<House[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterGroup, setFilterGroup] = useState('All');
     const [filterEvent, setFilterEvent] = useState('All');
-    const [isRegOpen, setIsRegOpen] = useState(true);
-    const [scoringRules, setScoringRules] = useState<ScoringRules>({
-        individual: { first: 5, second: 3, third: 1 },
-        group: { first: 10, second: 7, third: 5 }
-    });
 
     // Loading states
     const [loading, setLoading] = useState(false);
@@ -169,7 +162,15 @@ export default function AdminDashboard() {
             console.error("Admin Dashboard: Media Subscription Error:", error);
         });
 
-        // Listen to Recreation Media
+        // Listen to Union Day Participants
+        const unionDayQuery = query(collection(db, 'union_day_participants'));
+        const unsubscribeUnionDay = onSnapshot(unionDayQuery, (snapshot) => {
+            const liveUnionDay: UnionDayParticipant[] = [];
+            snapshot.forEach((docSnap) => {
+                liveUnionDay.push({ id: docSnap.id, ...docSnap.data() } as UnionDayParticipant);
+            });
+            setUnionDayParticipants(liveUnionDay);
+        });
 
         // Listen to Recreation Media
         const recreationQuery = query(collection(db, 'recreation_media'));
@@ -187,166 +188,16 @@ export default function AdminDashboard() {
             setRecreationMedia(liveRecreation);
         });
 
-        // Listen to Houses
-        const housesQuery = query(collection(db, 'houses'));
-        const unsubscribeHouses = onSnapshot(housesQuery, (snapshot) => {
-            const liveHouses: House[] = [];
-            snapshot.forEach((docSnap) => {
-                liveHouses.push({ id: docSnap.id, ...docSnap.data() } as House);
-            });
-            setHouses(liveHouses);
-        });
-
-        // Listen to Scoring Rules
-        const rulesDoc = doc(db, 'settings', 'scoring');
-        const unsubscribeRules = onSnapshot(rulesDoc, (snapshot) => {
-            if (snapshot.exists()) {
-                setScoringRules(snapshot.data() as ScoringRules);
-            }
-        });
-
-        // Listen to Registration Settings
-        const regSettingsDoc = doc(db, 'settings', 'registration');
-        const unsubscribeRegSettings = onSnapshot(regSettingsDoc, (snapshot) => {
-            if (snapshot.exists()) {
-                setIsRegOpen(snapshot.data().isOpen);
-            }
-        });
-
         return () => {
             unsubscribeEvents();
             unsubscribeParticipants();
             unsubscribeMedia();
+            unsubscribeUnionDay();
             unsubscribeRecreation();
-            unsubscribeRegSettings();
-            unsubscribeHouses();
-            unsubscribeRules();
         };
     }, []);
 
     // --- Mutations ---
-    const updateHousePoints = async (id: string, newPoints: number) => {
-        try {
-            await updateDoc(doc(db, 'houses', id), { points: newPoints });
-        } catch (error) {
-            console.error("Error updating house points:", error);
-        }
-    };
-
-    const updateEventWinner = async (eventId: string, place: 'first' | 'second' | 'third', participantId: string) => {
-        try {
-            const eventRef = doc(db, 'events', eventId);
-            await updateDoc(eventRef, {
-                [`winners.${place}`]: participantId
-            });
-
-            // Automatically trigger recalculation for real-time updates
-            // We use a silent version of recalculateAllScores without the confirm/alert
-            const newHousePoints: Record<string, number> = {
-                'AGNI': 0, 'ASTRA': 0, 'VAJRA': 0, 'RUDRA': 0
-            };
-
-            // Use the locally available latest state for calculation
-            events.forEach(event => {
-                const currentWinners = event.id === eventId
-                    ? { ...event.winners, [place]: participantId }
-                    : event.winners;
-
-                const rules = event.model === 'Individual' ? scoringRules.individual : scoringRules.group;
-
-                (['first', 'second', 'third'] as const).forEach(p => {
-                    const winnerId = currentWinners?.[p];
-                    if (winnerId) {
-                        const winner = participants.find(part => part.id === winnerId);
-                        if (winner && winner.group) {
-                            const houseName = winner.group.toUpperCase();
-                            if (newHousePoints[houseName] !== undefined) {
-                                newHousePoints[houseName] += rules[p];
-                            }
-                        }
-                    }
-                });
-            });
-
-            // Batch update house points in Firestore
-            for (const house of houses) {
-                const updatedPoints = newHousePoints[house.name.toUpperCase()];
-                if (updatedPoints !== undefined && updatedPoints !== house.points) {
-                    await updateDoc(doc(db, 'houses', house.id), { points: updatedPoints });
-                }
-            }
-        } catch (error) {
-            console.error("Error updating winner and scores:", error);
-        }
-    };
-
-    const updateScoringRules = async (newRules: ScoringRules) => {
-        try {
-            await updateDoc(doc(db, 'settings', 'scoring'), newRules as any);
-        } catch (error) {
-            // Handle if doc doesn't exist
-            const { setDoc } = await import('firebase/firestore');
-            await setDoc(doc(db, 'settings', 'scoring'), newRules as any);
-        }
-    };
-
-    const recalculateAllScores = async () => {
-        if (!window.confirm("Recalculate all house scores based on current winners and rules? This will overwrite manual point adjustments.")) return;
-        setLoading(true);
-        try {
-            const newHousePoints: Record<string, number> = {
-                'AGNI': 0, 'ASTRA': 0, 'VAJRA': 0, 'RUDRA': 0
-            };
-
-            events.forEach(event => {
-                const rules = event.model === 'Individual' ? scoringRules.individual : scoringRules.group;
-
-                (['first', 'second', 'third'] as const).forEach(place => {
-                    const winnerId = event.winners?.[place];
-                    if (winnerId) {
-                        const winner = participants.find(p => p.id === winnerId);
-                        if (winner && winner.group) {
-                            const houseName = winner.group.toUpperCase();
-                            if (newHousePoints[houseName] !== undefined) {
-                                newHousePoints[houseName] += rules[place];
-                            }
-                        }
-                    }
-                });
-            });
-
-            // Update Firestore
-            for (const house of houses) {
-                const updatedPoints = newHousePoints[house.name.toUpperCase()];
-                if (updatedPoints !== undefined) {
-                    await updateDoc(doc(db, 'houses', house.id), { points: updatedPoints });
-                }
-            }
-            alert("Scoreboard recalculated successfully!");
-        } catch (error) {
-            console.error("Recalculation error:", error);
-            alert("Failed to recalculate scores.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const seedHouses = async () => {
-        const defaultHouses = [
-            { name: 'AGNI', points: 0 },
-            { name: 'ASTRA', points: 0 },
-            { name: 'VAJRA', points: 0 },
-            { name: 'RUDRA', points: 0 }
-        ];
-        try {
-            for (const h of defaultHouses) {
-                await addDoc(collection(db, 'houses'), h);
-            }
-        } catch (error) {
-            console.error("Error seeding houses:", error);
-        }
-    };
-
     const handleCreateEvent = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newEvent.title) return;
@@ -435,34 +286,21 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleDeleteUnionDayParticipant = async (id: string) => {
+        if (!window.confirm("Are you sure you want to remove this Union Day registration?")) return;
+        try {
+            await deleteDoc(doc(db, 'union_day_participants', id));
+        } catch (error) {
+            console.error("Error deleting Union Day participant:", error);
+        }
+    };
+
     const handleDeleteRecreationMedia = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this recreation entry?")) return;
         try {
             await deleteDoc(doc(db, 'recreation_media', id));
         } catch (error) {
             console.error("Error deleting recreation media:", error);
-        }
-    };
-
-    const handleToggleRegistration = async () => {
-        try {
-            const regRef = doc(db, 'settings', 'registration');
-            await updateDoc(regRef, {
-                isOpen: !isRegOpen
-            });
-        } catch (error) {
-            console.error("Error toggling registration:", error);
-            // If document doesn't exist, create it
-            try {
-                const regRef = doc(db, 'settings', 'registration');
-                const { setDoc } = await import('firebase/firestore');
-                await setDoc(regRef, {
-                    isOpen: !isRegOpen
-                });
-            } catch (innerError) {
-                console.error("Failed to create settings document:", innerError);
-                alert("Failed to update registration status.");
-            }
         }
     };
 
@@ -541,15 +379,6 @@ export default function AdminDashboard() {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        // 4MB limit for proxy route to avoid 413 Payload Too Large
-        const MAX_SIZE = 4 * 1024 * 1024;
-        for (const file of Array.from(files)) {
-            if (file.size > MAX_SIZE) {
-                alert(`File ${file.name} is too large for FreeImage (max 4MB). Please use the "Upload ImgBB" button for larger files.`);
-                return;
-            }
-        }
-
         setLoading(true);
         setUploadProgress({ current: 0, total: files.length });
 
@@ -567,12 +396,6 @@ export default function AdminDashboard() {
                     method: 'POST',
                     body: formData
                 });
-
-                if (!response.ok) {
-                    const text = await response.text();
-                    console.error(`FreeImage Proxy Error (${response.status}):`, text);
-                    throw new Error(`Upload failed with status ${response.status}. The file might be too large for the server.`);
-                }
 
                 const result = await response.json();
 
@@ -597,7 +420,7 @@ export default function AdminDashboard() {
             }
         } catch (error) {
             console.error("Error in bulk FreeImage upload:", error);
-            alert(error instanceof Error ? error.message : "Some uploads might have failed. Please check the library.");
+            alert("Some uploads might have failed. Please check the library.");
         } finally {
             setLoading(false);
             setUploadProgress(null);
@@ -625,6 +448,13 @@ export default function AdminDashboard() {
         return matchesGroup && matchesEvent && matchesSearch;
     });
 
+    const filteredUnionDayParticipants = unionDayParticipants.filter(p => {
+        return (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.prpCode || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (p.eventName || '').toLowerCase().includes(searchQuery.toLowerCase());
+    });
+
     // --- PDF Export Logic ---
     const exportToPDF = () => {
         const doc = new jsPDF();
@@ -646,20 +476,33 @@ export default function AdminDashboard() {
             doc.text("DEXTRA 2026 - Participant Directory", 14, 20);
             autoTable(doc, {
                 startY: 25,
-                head: [['Name', 'Contact', 'Code', 'Group', 'G#', 'Events', 'Members']],
+                head: [['Name', 'Contact', 'Code', 'Group', 'Group No', 'Events']],
                 body: filteredParticipants.map(p => [
                     p.name,
                     p.email,
                     p.universityCode,
                     p.group || 'N/A',
                     p.groupNo || 'N/A',
-                    p.events.join(", "),
-                    (p.members || []).map(m => `${m.name} (${m.universityCode})`).join("\n") || 'N/A'
+                    p.events.join(", ")
                 ]),
-                styles: { fontSize: 8 },
-                columnStyles: { 6: { cellWidth: 40 } }
             });
             doc.save("dextra_participants_report.pdf");
+        } else if (activeTab === 'union-day') {
+            doc.text("DEXTRA 2026 - Union Day Participants", 14, 20);
+            autoTable(doc, {
+                startY: 25,
+                head: [['Name', 'PRP Code', 'Dept/Sem', 'Event', 'Email', 'Phone', 'Type']],
+                body: filteredUnionDayParticipants.map(p => [
+                    p.name,
+                    p.prpCode,
+                    `${p.department} (S${p.semester})`,
+                    p.eventName,
+                    p.email,
+                    p.phone,
+                    p.registrationType || 'individual'
+                ]),
+            });
+            doc.save("dextra_union_day_report.pdf");
         }
     };
 
@@ -682,13 +525,27 @@ export default function AdminDashboard() {
                 UniversityCode: p.universityCode,
                 Group: p.group || 'N/A',
                 GroupNo: p.groupNo || 'N/A',
-                Events: (p.events || []).join(", "),
-                Members: (p.members || []).map(m => `${m.name} (${m.universityCode})`).join(", ") || 'N/A'
+                Events: (p.events || []).join(", ")
             }));
             const worksheet = XLSX.utils.json_to_sheet(data);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Participants");
             XLSX.writeFile(workbook, "dextra_filtered_participants.xlsx");
+        } else if (activeTab === 'union-day') {
+            const data = filteredUnionDayParticipants.map(p => ({
+                Name: p.name,
+                PRPCode: p.prpCode,
+                Department: p.department,
+                Semester: p.semester,
+                Event: p.eventName,
+                Email: p.email,
+                Phone: p.phone,
+                Type: p.registrationType || 'individual'
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "UnionDay");
+            XLSX.writeFile(workbook, "dextra_union_day_participants.xlsx");
         }
     };
 
@@ -755,64 +612,52 @@ export default function AdminDashboard() {
         <div className="flex flex-col gap-8">
 
             {/* Tab Navigation */}
-            <div className="flex flex-col md:flex-row border-b border-white/10 gap-8 justify-between items-center">
-                <div className="flex gap-8">
-                    <button
-                        onClick={() => setActiveTab('events')}
-                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'events' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                    >
-                        Manage Events
-                        {activeTab === 'events' && (
-                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('participants')}
-                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'participants' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                    >
-                        Participants
-                        {activeTab === 'participants' && (
-                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('media')}
-                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'media' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                    >
-                        Media Library
-                        {activeTab === 'media' && (
-                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('recreation')}
-                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'recreation' ? 'text-pink-500' : 'text-white/50 hover:text-white/80'}`}
-                    >
-                        Recreation
-                        {activeTab === 'recreation' && (
-                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-500" />
-                        )}
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('results')}
-                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'results' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
-                    >
-                        Scoreboard Center
-                        {activeTab === 'results' && (
-                            <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
-                        )}
-                    </button>
-                </div>
-
-                <div className="pb-4">
-                    <button
-                        onClick={handleToggleRegistration}
-                        className={`flex items-center gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all ${isRegOpen ? 'border-green-500/50 text-green-400 bg-green-500/5 hover:bg-green-500/10' : 'border-red-500/50 text-red-400 bg-red-500/5 hover:bg-red-500/10'}`}
-                    >
-                        <span className={`w-2 h-2 rounded-full ${isRegOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                        Registration: {isRegOpen ? 'Open' : 'Closed'}
-                    </button>
-                </div>
+            <div className="flex border-b border-white/10 gap-8">
+                <button
+                    onClick={() => setActiveTab('events')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'events' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Manage Events
+                    {activeTab === 'events' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('participants')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'participants' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Participants
+                    {activeTab === 'participants' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('media')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'media' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Media Library
+                    {activeTab === 'media' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('union-day')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'union-day' ? 'text-accent-gold' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Union Day
+                    {activeTab === 'union-day' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-gold" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('recreation')}
+                    className={`pb-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${activeTab === 'recreation' ? 'text-pink-500' : 'text-white/50 hover:text-white/80'}`}
+                >
+                    Recreation
+                    {activeTab === 'recreation' && (
+                        <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-pink-500" />
+                    )}
+                </button>
             </div>
 
             <AnimatePresence mode="wait">
@@ -1427,6 +1272,123 @@ export default function AdminDashboard() {
                     </motion.div>
                 )}
 
+                {/* UNION DAY VIEW */}
+                {activeTab === 'union-day' && (
+                    <motion.div key="union-day-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                            <div>
+                                <h1 className="text-3xl font-display font-medium text-white mb-2">Union Day Registrations</h1>
+                                <p className="text-white/50 text-sm font-sans">View and manage registrations for Union Day 2026.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-4 items-center">
+                                <input
+                                    type="text"
+                                    placeholder="Search Union Day..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs"
+                                />
+                                <button
+                                    onClick={exportToPDF}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-accent-gold text-black transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-white"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">picture_as_pdf</span>
+                                    PDF
+                                </button>
+                                <button
+                                    onClick={exportToExcel}
+                                    className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-green-600 text-white transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-green-700"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[16px]">table_view</span>
+                                    Excel
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Union Day Table */}
+                        <div className="w-full overflow-x-auto border border-white/10 bg-[#181611]/50 mix-blend-screen backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-white/80">
+                                <thead className="bg-black/40 text-xs uppercase tracking-widest text-white/50 border-b border-white/10">
+                                    <tr>
+                                        <th className="px-6 py-4 font-bold">Representative</th>
+                                        <th className="px-6 py-4 font-bold">Type</th>
+                                        <th className="px-6 py-4 font-bold">Event</th>
+                                        <th className="px-6 py-4 font-bold">Contact</th>
+                                        <th className="px-6 py-4 font-bold">Members</th>
+                                        <th className="px-6 py-4 font-bold text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    <AnimatePresence>
+                                        {filteredUnionDayParticipants.map((p) => (
+                                            <motion.tr
+                                                key={p.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className="hover:bg-white/5 transition-colors"
+                                            >
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-white">{p.name}</span>
+                                                        <span className="text-[10px] text-accent-gold uppercase tracking-tighter">{p.prpCode} • {p.department} S{p.semester}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-block px-2 py-0.5 text-[9px] uppercase tracking-widest border rounded-sm ${p.registrationType === 'group' ? 'border-purple-500/40 text-purple-400 bg-purple-500/5' : 'border-white/20 text-white/40'}`}>
+                                                        {p.registrationType || 'individual'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-[10px] uppercase tracking-widest text-white/60">
+                                                        {p.eventName}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="text-xs text-white/70">{p.email}</span>
+                                                        <span className="text-[10px] text-white/40">{p.phone}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {p.registrationType === 'group' && p.members && p.members.length > 0 ? (
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="text-[10px] text-accent-gold font-bold uppercase">{p.members.length} Members</span>
+                                                            <div className="flex flex-col gap-0.5 max-h-20 overflow-y-auto custom-scrollbar pr-2">
+                                                                {p.members.map((m, idx) => (
+                                                                    <span key={idx} className="text-[9px] text-white/40 leading-tight">
+                                                                        {m.name} ({m.department} S{m.semester})
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] text-white/20 italic">N/A</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button
+                                                        onClick={() => handleDeleteUnionDayParticipant(p.id)}
+                                                        className="text-white/30 hover:text-accent-red transition-colors p-1"
+                                                        title="Delete Registration"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                    </button>
+                                                </td>
+                                            </motion.tr>
+                                        ))}
+                                        {filteredUnionDayParticipants.length === 0 && (
+                                            <tr>
+                                                <td colSpan={6} className="px-6 py-12 text-center text-white/40 italic">No Union Day registrations found.</td>
+                                            </tr>
+                                        )}
+                                    </AnimatePresence>
+                                </tbody>
+                            </table>
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* RECREATION VIEW */}
                 {activeTab === 'recreation' && (
                     <motion.div key="recreation-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-8">
@@ -1521,143 +1483,6 @@ export default function AdminDashboard() {
                                     </AnimatePresence>
                                 </tbody>
                             </table>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* RESULTS VIEW */}
-                {activeTab === 'results' && (
-                    <motion.div key="results-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-12">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                            <div>
-                                <h1 className="text-3xl font-display font-medium text-white mb-2">Scoreboard Center</h1>
-                                <p className="text-white/50 text-sm font-sans">Configure points and manage house standings.</p>
-                            </div>
-                            <div className="flex gap-4">
-                                <button
-                                    onClick={recalculateAllScores}
-                                    disabled={loading}
-                                    className="h-10 px-6 bg-white/5 border border-white/20 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2"
-                                >
-                                    <span className={`material-symbols-outlined text-[16px] ${loading ? 'animate-spin' : ''}`}>sync</span>
-                                    Recalculate Scores
-                                </button>
-                                {houses.length === 0 && (
-                                    <button
-                                        onClick={seedHouses}
-                                        className="h-10 px-6 bg-accent-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-all"
-                                    >
-                                        Initialize Houses
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                            {/* Scoring Rules */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                                    <span className="material-symbols-outlined text-accent-gold">settings_suggest</span>
-                                    <h2 className="text-xl font-display text-white uppercase tracking-widest">Point Rules</h2>
-                                </div>
-                                <div className="space-y-8">
-                                    {(['individual', 'group'] as const).map((type) => (
-                                        <div key={type} className="space-y-4">
-                                            <h3 className="text-xs font-bold text-white/40 uppercase tracking-[0.2em]">{type} Events</h3>
-                                            <div className="grid grid-cols-3 gap-4">
-                                                {(['first', 'second', 'third'] as const).map((place) => (
-                                                    <div key={place} className="space-y-1">
-                                                        <label className="text-[9px] text-white/30 uppercase tracking-widest font-bold">
-                                                            {place === 'first' ? '1st' : place === 'second' ? '2nd' : '3rd'}
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            value={scoringRules[type][place]}
-                                                            onChange={(e) => {
-                                                                const val = parseInt(e.target.value) || 0;
-                                                                const newRules = { ...scoringRules };
-                                                                newRules[type][place] = val;
-                                                                setScoringRules(newRules);
-                                                            }}
-                                                            onBlur={() => updateScoringRules(scoringRules)}
-                                                            className="w-full h-8 bg-[#181611] border border-white/10 px-3 text-xs text-white focus:border-accent-gold outline-none"
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* House Standings */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                                    <span className="material-symbols-outlined text-accent-gold">leaderboard</span>
-                                    <h2 className="text-xl font-display text-white uppercase tracking-widest">House Standings</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {houses.sort((a, b) => b.points - a.points).map((house) => (
-                                        <div key={house.id} className="p-4 bg-[#181611] border border-white/10 flex flex-col gap-3">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-sm font-bold text-white tracking-widest">{house.name}</span>
-                                                <span className="text-xs text-accent-gold font-mono">{house.points} PTS</span>
-                                            </div>
-                                            <input
-                                                type="number"
-                                                value={house.points}
-                                                onChange={(e) => {
-                                                    const val = parseInt(e.target.value) || 0;
-                                                    const newHouses = houses.map(h => h.id === house.id ? { ...h, points: val } : h);
-                                                    setHouses(newHouses);
-                                                }}
-                                                onBlur={(e) => updateHousePoints(house.id, parseInt(e.target.value) || 0)}
-                                                className="w-full h-8 bg-black/40 border border-white/10 px-3 text-xs text-white focus:border-accent-gold outline-none"
-                                                placeholder="Manual Update"
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Winners Management */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                                    <span className="material-symbols-outlined text-accent-gold">workspace_premium</span>
-                                    <h2 className="text-xl font-display text-white uppercase tracking-widest">Event Winners</h2>
-                                </div>
-                                <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-                                    {events.sort((a, b) => a.title.localeCompare(b.title)).map((event) => {
-                                        const eventParticipants = participants.filter(p => p.events?.includes(event.title));
-                                        return (
-                                            <div key={event.id} className="p-4 bg-[#181611] border border-white/10 space-y-4">
-                                                <h3 className="text-sm font-bold text-accent-gold tracking-wide">{event.title}</h3>
-                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                                    {(['first', 'second', 'third'] as const).map((place) => (
-                                                        <div key={place} className="space-y-1">
-                                                            <label className="text-[9px] uppercase tracking-widest text-white/40 font-bold block">
-                                                                {place === 'first' ? '🥇 1st' : place === 'second' ? '🥈 2nd' : '🥉 3rd'}
-                                                            </label>
-                                                            <select
-                                                                value={event.winners?.[place] || ''}
-                                                                onChange={(e) => updateEventWinner(event.id, place, e.target.value)}
-                                                                className="w-full h-8 bg-black/40 border border-white/10 px-2 text-[10px] text-white focus:border-accent-gold outline-none"
-                                                            >
-                                                                <option value="">Select Winner</option>
-                                                                {eventParticipants.map(pic => (
-                                                                    <option key={pic.id} value={pic.id} className="bg-[#181611]">
-                                                                        {pic.name} ({pic.group})
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
                         </div>
                     </motion.div>
                 )}

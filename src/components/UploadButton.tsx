@@ -26,6 +26,12 @@ export default function UploadButton({ category, collectionName, showMetadataFor
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // 4MB limit for proxy route to avoid 413 Payload Too Large
+        if (file.size > 4 * 1024 * 1024) {
+            alert('File is too large for FreeImage (max 4MB). Please use the main Media Library and "Upload ImgBB" for larger files.');
+            return;
+        }
+
         setIsUploading(true);
         try {
             const uploadFormData = new FormData();
@@ -37,6 +43,12 @@ export default function UploadButton({ category, collectionName, showMetadataFor
                 method: 'POST',
                 body: uploadFormData
             });
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error(`FreeImage Proxy Error (${response.status}):`, text);
+                throw new Error(`Upload failed with status ${response.status}. The file might be too large.`);
+            }
 
             const data = await response.json();
 
@@ -59,7 +71,7 @@ export default function UploadButton({ category, collectionName, showMetadataFor
             }
         } catch (error) {
             console.error('Error uploading to FreeImage:', error);
-            alert('Upload failed. Please try again.');
+            alert(error instanceof Error ? error.message : 'Upload failed. Please try again.');
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
