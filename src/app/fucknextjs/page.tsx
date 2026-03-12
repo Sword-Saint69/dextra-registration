@@ -50,9 +50,9 @@ interface Event {
     description?: string;
     location?: string;
     winners?: {
-        first?: string;
-        second?: string;
-        third?: string;
+        first?: string[];
+        second?: string[];
+        third?: string[];
     };
 }
 
@@ -236,42 +236,54 @@ export default function AdminDashboard() {
         }
     };
 
-    const updateEventWinner = async (eventId: string, place: 'first' | 'second' | 'third', participantId: string) => {
+    const updateEventWinner = async (eventId: string, place: 'first' | 'second' | 'third', participantId: string, isRemoving: boolean = false) => {
         try {
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+
+            const rawWinners = event.winners?.[place];
+            const currentWinners = Array.isArray(rawWinners) ? rawWinners : (rawWinners ? [rawWinners] : []);
+            let newWinners: string[];
+
+            if (isRemoving) {
+                newWinners = currentWinners.filter(id => id !== participantId);
+            } else {
+                if (currentWinners.includes(participantId)) return;
+                newWinners = [...currentWinners, participantId];
+            }
+
             const eventRef = doc(db, 'events', eventId);
             await updateDoc(eventRef, {
-                [`winners.${place}`]: participantId
+                [`winners.${place}`]: newWinners
             });
 
-            // Automatically trigger recalculation for real-time updates
-            // We use a silent version of recalculateAllScores without the confirm/alert
+            // Recalculate house points after winner change
             const newHousePoints: Record<string, number> = {
                 'AGNI': 0, 'ASTRA': 0, 'VAJRA': 0, 'RUDRA': 0
             };
 
-            // Use the locally available latest state for calculation
-            events.forEach(event => {
-                const currentWinners = event.id === eventId
-                    ? { ...event.winners, [place]: participantId }
-                    : event.winners;
+            events.forEach(ev => {
+                const winnersForEv = ev.id === eventId
+                    ? { ...ev.winners, [place]: newWinners }
+                    : ev.winners;
 
-                const rules = event.model === 'Individual' ? scoringRules.individual : scoringRules.group;
+                const rules = ev.model === 'Individual' ? scoringRules.individual : scoringRules.group;
 
                 (['first', 'second', 'third'] as const).forEach(p => {
-                    const winnerId = currentWinners?.[p];
-                    if (winnerId) {
-                        const winner = participants.find(part => part.id === winnerId);
+                    const rawW = winnersForEv?.[p];
+                    const winnerIds = Array.isArray(rawW) ? rawW : (rawW ? [rawW] : []);
+                    winnerIds.forEach(wid => {
+                        const winner = participants.find(part => part.id === wid);
                         if (winner && winner.group) {
                             const houseName = winner.group.toUpperCase();
                             if (newHousePoints[houseName] !== undefined) {
                                 newHousePoints[houseName] += rules[p];
                             }
                         }
-                    }
+                    });
                 });
             });
 
-            // Batch update house points in Firestore
             for (const house of houses) {
                 const updatedPoints = newHousePoints[house.name.toUpperCase()];
                 if (updatedPoints !== undefined && updatedPoints !== house.points) {
@@ -305,8 +317,9 @@ export default function AdminDashboard() {
                 const rules = event.model === 'Individual' ? scoringRules.individual : scoringRules.group;
 
                 (['first', 'second', 'third'] as const).forEach(place => {
-                    const winnerId = event.winners?.[place];
-                    if (winnerId) {
+                    const rawW = event.winners?.[place];
+                    const winnerIds = Array.isArray(rawW) ? rawW : (rawW ? [rawW] : []);
+                    winnerIds.forEach(winnerId => {
                         const winner = participants.find(p => p.id === winnerId);
                         if (winner && winner.group) {
                             const houseName = winner.group.toUpperCase();
@@ -314,7 +327,7 @@ export default function AdminDashboard() {
                                 newHousePoints[houseName] += rules[place];
                             }
                         }
-                    }
+                    });
                 });
             });
 
@@ -1635,26 +1648,49 @@ export default function AdminDashboard() {
                                         return (
                                             <div key={event.id} className="p-4 bg-[#181611] border border-white/10 space-y-4">
                                                 <h3 className="text-sm font-bold text-accent-gold tracking-wide">{event.title}</h3>
-                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                                    {(['first', 'second', 'third'] as const).map((place) => (
-                                                        <div key={place} className="space-y-1">
-                                                            <label className="text-[9px] uppercase tracking-widest text-white/40 font-bold block">
-                                                                {place === 'first' ? '🥇 1st' : place === 'second' ? '🥈 2nd' : '🥉 3rd'}
-                                                            </label>
-                                                            <select
-                                                                value={event.winners?.[place] || ''}
-                                                                onChange={(e) => updateEventWinner(event.id, place, e.target.value)}
-                                                                className="w-full h-8 bg-black/40 border border-white/10 px-2 text-[10px] text-white focus:border-accent-gold outline-none"
-                                                            >
-                                                                <option value="">Select Winner</option>
-                                                                {eventParticipants.map(pic => (
-                                                                    <option key={pic.id} value={pic.id} className="bg-[#181611]">
-                                                                        {pic.name} ({pic.group})
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        </div>
-                                                    ))}
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">                                                    {(['first', 'second', 'third'] as const).map((place) => {
+                                                        const rawW = event.winners?.[place];
+                                                        const winnerIds = Array.isArray(rawW) ? rawW : (rawW ? [rawW] : []);
+                                                        return (
+                                                            <div key={place} className="space-y-2">
+                                                                <label className="text-[9px] uppercase tracking-widest text-white/40 font-bold block">
+                                                                    {place === 'first' ? '🥇 1st' : place === 'second' ? '🥈 2nd' : '🥉 3rd'}
+                                                                </label>
+                                                                <div className="flex flex-col gap-2">
+                                                                    {winnerIds.map(wid => {
+                                                                        const p = participants.find(part => part.id === wid);
+                                                                        return (
+                                                                            <div key={wid} className="flex items-center justify-between bg-black/60 px-2 py-1 border border-accent-gold/20 rounded-sm">
+                                                                                <span className="text-[9px] text-white truncate max-w-[80px]">{p?.name || 'Unknown'}</span>
+                                                                                <button
+                                                                                    onClick={() => updateEventWinner(event.id, place, wid, true)}
+                                                                                    className="text-accent-red hover:text-white transition-colors"
+                                                                                >
+                                                                                    <span className="material-symbols-outlined text-[14px]">close</span>
+                                                                                </button>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                    <select
+                                                                        value=""
+                                                                        onChange={(e) => {
+                                                                            if (e.target.value) updateEventWinner(event.id, place, e.target.value);
+                                                                        }}
+                                                                        className="w-full h-8 bg-black/40 border border-white/10 px-2 text-[10px] text-white focus:border-accent-gold outline-none"
+                                                                    >
+                                                                        <option value="">Add Winner</option>
+                                                                        {eventParticipants
+                                                                            .filter(pic => !winnerIds.includes(pic.id))
+                                                                            .map(pic => (
+                                                                                <option key={pic.id} value={pic.id} className="bg-[#181611]">
+                                                                                    {pic.name} ({pic.group})
+                                                                                </option>
+                                                                            ))}
+                                                                    </select>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         );

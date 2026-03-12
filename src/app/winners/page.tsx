@@ -18,9 +18,9 @@ interface Event {
     id: string;
     title: string;
     winners?: {
-        first?: string;
-        second?: string;
-        third?: string;
+        first?: string[];
+        second?: string[];
+        third?: string[];
     };
 }
 
@@ -47,7 +47,7 @@ export default function WinnersPage() {
             snapshot.forEach((doc) => {
                 list.push({ id: doc.id, ...doc.data() } as Event);
             });
-            setEvents(list.filter(e => e.winners?.first || e.winners?.second || e.winners?.third));
+            setEvents(list.filter(e => e.winners?.first?.length || e.winners?.second?.length || e.winners?.third?.length));
             setIsLoading(false);
         });
 
@@ -127,55 +127,88 @@ export default function WinnersPage() {
                                     {/* Winners List */}
                                     <div className="space-y-6">
                                         {/* 1st Place */}
-                                        {event.winners?.first && (
-                                            <div className="flex items-center gap-4">
-                                                <div className="size-10 bg-accent-gold text-black flex items-center justify-center font-bold text-lg rounded-sm shadow-[0_0_15px_rgba(198,166,100,0.3)] shrink-0">
-                                                    1
+                                        {(() => {
+                                            const raw = event.winners?.first;
+                                            const winnerIds = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+                                            if (winnerIds.length === 0) return null;
+                                            return (
+                                                <div className="flex flex-col gap-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="size-10 bg-accent-gold text-black flex items-center justify-center font-bold text-lg rounded-sm shadow-[0_0_15px_rgba(198,166,100,0.3)] shrink-0">
+                                                            1
+                                                        </div>
+                                                        <div className="w-full h-px bg-accent-gold/20" />
+                                                    </div>
+                                                    <div className="space-y-3 pl-14">
+                                                        {winnerIds.map(wid => {
+                                                            const p = getParticipantName(wid);
+                                                            return (
+                                                                <div key={wid}>
+                                                                    <p className="text-sm font-bold text-white tracking-wide">{p?.name}</p>
+                                                                    <p className="text-[10px] uppercase tracking-widest text-accent-gold font-bold">{p?.group}</p>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-bold text-white tracking-wide">
-                                                        {getParticipantName(event.winners.first)?.name}
-                                                    </p>
-                                                    <p className="text-[10px] uppercase tracking-widest text-accent-gold font-bold">
-                                                        {getParticipantName(event.winners.first)?.group}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
 
                                         {/* 2nd Place */}
-                                        {event.winners?.second && (
-                                            <div className="flex items-center gap-4 opacity-80">
-                                                <div className="size-8 border border-white/20 text-white/80 flex items-center justify-center font-bold text-sm rounded-sm shrink-0">
-                                                    2
+                                        {(() => {
+                                            const raw = event.winners?.second;
+                                            const winnerIds = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+                                            if (winnerIds.length === 0) return null;
+                                            return (
+                                                <div className="flex flex-col gap-4 opacity-80">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="size-8 border border-white/20 text-white/80 flex items-center justify-center font-bold text-sm rounded-sm shrink-0">
+                                                            2
+                                                        </div>
+                                                        <div className="w-full h-px bg-white/10" />
+                                                    </div>
+                                                    <div className="space-y-3 pl-12">
+                                                        {winnerIds.map(wid => {
+                                                            const p = getParticipantName(wid);
+                                                            return (
+                                                                <div key={wid}>
+                                                                    <p className="text-xs font-bold text-white/90">{p?.name}</p>
+                                                                    <p className="text-[9px] uppercase tracking-widest text-white/40 font-bold">{p?.group}</p>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="text-xs font-bold text-white/90">
-                                                        {getParticipantName(event.winners.second)?.name}
-                                                    </p>
-                                                    <p className="text-[9px] uppercase tracking-widest text-white/40 font-bold">
-                                                        {getParticipantName(event.winners.second)?.group}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
 
                                         {/* 3rd Place */}
-                                        {event.winners?.third && (
-                                            <div className="flex items-center gap-4 opacity-60">
-                                                <div className="size-8 border border-white/10 text-white/60 flex items-center justify-center font-bold text-sm rounded-sm shrink-0">
-                                                    3
+                                        {(() => {
+                                            const raw = event.winners?.third;
+                                            const winnerIds = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+                                            if (winnerIds.length === 0) return null;
+                                            return (
+                                                <div className="flex flex-col gap-4 opacity-60">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="size-8 border border-white/10 text-white/60 flex items-center justify-center font-bold text-sm rounded-sm shrink-0">
+                                                            3
+                                                        </div>
+                                                        <div className="w-full h-px bg-white/5" />
+                                                    </div>
+                                                    <div className="space-y-3 pl-12">
+                                                        {winnerIds.map(wid => {
+                                                            const p = getParticipantName(wid);
+                                                            return (
+                                                                <div key={wid}>
+                                                                    <p className="text-xs font-bold text-white/80">{p?.name}</p>
+                                                                    <p className="text-[9px] uppercase tracking-widest text-white/30 font-bold">{p?.group}</p>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="text-xs font-bold text-white/80">
-                                                        {getParticipantName(event.winners.third)?.name}
-                                                    </p>
-                                                    <p className="text-[9px] uppercase tracking-widest text-white/30 font-bold">
-                                                        {getParticipantName(event.winners.third)?.group}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Decorative Overlay */}
