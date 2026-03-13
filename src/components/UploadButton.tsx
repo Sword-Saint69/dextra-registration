@@ -6,7 +6,7 @@ import { useState, useRef } from 'react';
 
 interface UploadButtonProps {
     category: string;
-    collectionName: 'media' | 'recreation_media';
+    collectionName: 'media' | 'recreation_media' | 'spot_media';
     showMetadataForm?: boolean;
 }
 

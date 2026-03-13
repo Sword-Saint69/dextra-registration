@@ -78,14 +78,16 @@ const fadeUp = {
 };
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media' | 'recreation' | 'results'>('events');
+    const [activeTab, setActiveTab] = useState<'events' | 'participants' | 'media' | 'recreation' | 'spot' | 'results'>('events');
 
     // State
     const [events, setEvents] = useState<Event[]>([]);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [media, setMedia] = useState<MediaAsset[]>([]);
     const [recreationMedia, setRecreationMedia] = useState<MediaAsset[]>([]);
+    const [spotMedia, setSpotMedia] = useState<MediaAsset[]>([]);
     const [houses, setHouses] = useState<House[]>([]);
+    const [sportsHouses, setSportsHouses] = useState<House[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filterGroup, setFilterGroup] = useState('All');
     const [filterEvent, setFilterEvent] = useState('All');
@@ -108,6 +110,19 @@ export default function AdminDashboard() {
     const mediaInputRef = useRef<HTMLInputElement>(null);
     const freeMediaInputRef = useRef<HTMLInputElement>(null);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+    const [winnerSearchQuery, setWinnerSearchQuery] = useState('');
+    const [quickSearchQuery, setQuickSearchQuery] = useState('');
+    const [quickAddHouse, setQuickAddHouse] = useState('NONE');
+    const [activeSearch, setActiveSearch] = useState<{ eventId: string, place: 'first' | 'second' | 'third' } | null>(null);
+    const [isAddingParticipant, setIsAddingParticipant] = useState(false);
+    const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+    const [newParticipant, setNewParticipant] = useState<Partial<Participant>>({
+        name: '',
+        email: '',
+        universityCode: '',
+        group: 'NONE',
+        events: []
+    });
     const [newEvent, setNewEvent] = useState<Partial<Event>>({
         title: '',
         model: 'Individual',
@@ -190,6 +205,22 @@ export default function AdminDashboard() {
             setRecreationMedia(liveRecreation);
         });
 
+        // Listen to Spot Media
+        const spotQuery = query(collection(db, 'spot_media'));
+        const unsubscribeSpot = onSnapshot(spotQuery, (snapshot) => {
+            const liveSpot: MediaAsset[] = [];
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                liveSpot.push({
+                    id: docSnap.id,
+                    ...data,
+                    publicId: data.publicId || data.image || 'cld-sample-5',
+                    url: data.url || (data.image && data.image.startsWith('http') ? data.image : `https://res.cloudinary.com/ddx7vzskv/image/upload/v1/${data.image || 'cld-sample-5'}`)
+                } as MediaAsset);
+            });
+            setSpotMedia(liveSpot);
+        });
+
         // Listen to Houses
         const housesQuery = query(collection(db, 'houses'));
         const unsubscribeHouses = onSnapshot(housesQuery, (snapshot) => {
@@ -198,6 +229,16 @@ export default function AdminDashboard() {
                 liveHouses.push({ id: docSnap.id, ...docSnap.data() } as House);
             });
             setHouses(liveHouses);
+        });
+
+        // Listen to Sports Houses
+        const sportsHousesQuery = query(collection(db, 'sports_houses'));
+        const unsubscribeSportsHouses = onSnapshot(sportsHousesQuery, (snapshot) => {
+            const liveHouses: House[] = [];
+            snapshot.forEach((docSnap) => {
+                liveHouses.push({ id: docSnap.id, ...docSnap.data() } as House);
+            });
+            setSportsHouses(liveHouses);
         });
 
         // Listen to Scoring Rules
@@ -221,8 +262,10 @@ export default function AdminDashboard() {
             unsubscribeParticipants();
             unsubscribeMedia();
             unsubscribeRecreation();
+            unsubscribeSpot();
             unsubscribeRegSettings();
             unsubscribeHouses();
+            unsubscribeSportsHouses();
             unsubscribeRules();
         };
     }, []);
@@ -233,6 +276,72 @@ export default function AdminDashboard() {
             await updateDoc(doc(db, 'houses', id), { points: newPoints });
         } catch (error) {
             console.error("Error updating house points:", error);
+        }
+    };
+
+    const updateSportsHousePoints = async (id: string, newPoints: number) => {
+        try {
+            await updateDoc(doc(db, 'sports_houses', id), { points: newPoints });
+        } catch (error) {
+            console.error("Error updating sports house points:", error);
+        }
+    };
+
+    const handleCreateParticipant = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newParticipant.name) return;
+        try {
+            await addDoc(collection(db, 'participants'), {
+                ...newParticipant,
+                events: newParticipant.events || [],
+                timestamp: new Date().toISOString()
+            });
+            setIsAddingParticipant(false);
+            setNewParticipant({ name: '', email: '', universityCode: '', group: 'NONE', events: [] });
+        } catch (error) {
+            console.error("Error creating participant:", error);
+        }
+    };
+
+    const handleUpdateParticipant = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingParticipant?.id || !newParticipant.name) return;
+        try {
+            const partRef = doc(db, 'participants', editingParticipant.id);
+            await updateDoc(partRef, {
+                name: newParticipant.name,
+                email: newParticipant.email,
+                universityCode: newParticipant.universityCode,
+                group: newParticipant.group,
+                events: newParticipant.events || []
+            });
+            setIsAddingParticipant(false);
+            setEditingParticipant(null);
+            setNewParticipant({ name: '', email: '', universityCode: '', group: 'NONE', events: [] });
+        } catch (error) {
+            console.error("Error updating participant:", error);
+        }
+    };
+
+    const handleEditParticipant = (p: Participant) => {
+        setEditingParticipant(p);
+        setNewParticipant({
+            name: p.name,
+            email: p.email,
+            universityCode: p.universityCode,
+            group: p.group,
+            events: p.events || []
+        });
+        setIsAddingParticipant(true);
+    };
+
+    const updateParticipantGroup = async (participantId: string, newGroup: string) => {
+        try {
+            const partRef = doc(db, 'participants', participantId);
+            await updateDoc(partRef, { group: newGroup });
+            // The score recalculation will use the new group data next time it's run
+        } catch (error) {
+            console.error("Error updating participant group:", error);
         }
     };
 
@@ -457,6 +566,15 @@ export default function AdminDashboard() {
             await deleteDoc(doc(db, 'recreation_media', id));
         } catch (error) {
             console.error("Error deleting recreation media:", error);
+        }
+    };
+
+    const handleDeleteSpotMedia = async (id: string) => {
+        if (!window.confirm("Are you sure you want to delete this spot photography entry?")) return;
+        try {
+            await deleteDoc(doc(db, 'spot_media', id));
+        } catch (error) {
+            console.error("Error deleting spot media:", error);
         }
     };
 
@@ -1120,8 +1238,19 @@ export default function AdminDashboard() {
                                     placeholder="Search details..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs min-w-[200px]"
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white text-xs min-w-[200px]"
                                 />
+                                <button
+                                    onClick={() => {
+                                        setEditingParticipant(null);
+                                        setNewParticipant({ name: '', email: '', universityCode: '', group: 'NONE', events: [] });
+                                        setIsAddingParticipant(!isAddingParticipant);
+                                    }}
+                                    className="group flex min-w-[140px] cursor-pointer items-center justify-center rounded-none border border-accent-gold h-10 px-6 bg-[#181611] text-accent-gold transition-all duration-300 text-xs font-bold tracking-wider uppercase hover:bg-accent-gold hover:text-[#121212]"
+                                >
+                                    <span className="material-symbols-outlined mr-2 text-[18px]">{isAddingParticipant ? 'close' : 'person_add'}</span>
+                                    {isAddingParticipant ? 'Cancel' : 'New Person'}
+                                </button>
                                 <button
                                     onClick={exportToPDF}
                                     className="group flex cursor-pointer items-center justify-center rounded-none border border-white/20 h-10 px-4 bg-accent-gold text-black transition-all duration-300 text-[10px] font-bold tracking-wider uppercase hover:bg-white"
@@ -1138,6 +1267,64 @@ export default function AdminDashboard() {
                                 </button>
                             </div>
                         </div>
+
+                        {/* Add Participant Form Panel */}
+                        <AnimatePresence>
+                            {isAddingParticipant && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="bg-[#181611] border border-white/10 p-6 mb-4">
+                                        <h3 className="font-display text-xl text-white mb-6 border-b border-white/5 pb-2">
+                                            {editingParticipant ? 'Edit Person' : 'Add New Person'}
+                                        </h3>
+                                        <form onSubmit={editingParticipant ? handleUpdateParticipant : handleCreateParticipant} className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                                            <div className="space-y-2 md:col-span-1">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/50">Full Name</label>
+                                                <input
+                                                    value={newParticipant.name}
+                                                    onChange={(e) => setNewParticipant({ ...newParticipant, name: e.target.value })}
+                                                    className="w-full h-10 px-3 border-white/10 bg-black/20 text-white focus:border-accent-gold"
+                                                    placeholder="John Doe"
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2 md:col-span-1">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/50">College / Univ Code</label>
+                                                <input
+                                                    value={newParticipant.universityCode}
+                                                    onChange={(e) => setNewParticipant({ ...newParticipant, universityCode: e.target.value })}
+                                                    className="w-full h-10 px-3 border-white/10 bg-black/20 text-white focus:border-accent-gold"
+                                                    placeholder="CAS/648"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="block text-xs font-bold uppercase tracking-widest text-white/50">House (Group)</label>
+                                                <select
+                                                    value={newParticipant.group}
+                                                    onChange={(e) => setNewParticipant({ ...newParticipant, group: e.target.value })}
+                                                    className="w-full h-10 px-3 border-white/10 bg-black/20 text-white focus:border-accent-gold"
+                                                >
+                                                    <option value="NONE">NONE</option>
+                                                    <option value="AGNI">AGNI</option>
+                                                    <option value="ASTRA">ASTRA</option>
+                                                    <option value="VAJRA">VAJRA</option>
+                                                    <option value="RUDRA">RUDRA</option>
+                                                </select>
+                                            </div>
+                                            <div className="flex justify-end gap-3">
+                                                <button type="submit" className="h-10 px-8 bg-accent-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors">
+                                                    {editingParticipant ? 'Update' : 'Add Person'}
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Participants Table */}
                         <div className="w-full overflow-x-auto border border-white/10 bg-[#181611]/50 mix-blend-screen backdrop-blur-sm">
@@ -1191,13 +1378,22 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={() => handleDeleteParticipant(participant.id)}
-                                                        className="text-white/30 hover:text-accent-red transition-colors p-1"
-                                                        title="Remove Participant"
-                                                    >
-                                                        <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                    </button>
+                                                    <div className="flex justify-end gap-2 text-white/40">
+                                                        <button
+                                                            onClick={() => handleEditParticipant(participant)}
+                                                            className="p-1 hover:text-accent-gold transition-colors"
+                                                            title="Edit Person"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteParticipant(participant.id)}
+                                                            className="text-white/30 hover:text-accent-red transition-colors p-1"
+                                                            title="Remove Participant"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </motion.tr>
                                         ))}
@@ -1541,6 +1737,104 @@ export default function AdminDashboard() {
                     </motion.div>
                 )}
 
+                {/* SPOT VIEW */}
+                {activeTab === 'spot' && (
+                    <motion.div key="spot-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-8">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                            <div>
+                                <h1 className="text-3xl font-display font-medium text-white mb-2">Spot Photography Entries</h1>
+                                <p className="text-white/50 text-sm font-sans">Manage and download submissions from the Spot Photography event.</p>
+                            </div>
+                            <div className="flex flex-wrap gap-4 items-center">
+                                <input
+                                    type="text"
+                                    placeholder="Search entries..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-10 px-4 bg-[#181611] border border-white/20 text-white focus:border-accent-gold text-xs"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="w-full overflow-x-auto border border-white/10 bg-[#181611]/50 mix-blend-screen backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-white/80">
+                                <thead className="bg-black/40 text-xs uppercase tracking-widest text-white/50 border-b border-white/10">
+                                    <tr>
+                                        <th className="px-6 py-4 font-bold">Preview</th>
+                                        <th className="px-6 py-4 font-bold">Artist Info</th>
+                                        <th className="px-6 py-4 font-bold">Entry Title</th>
+                                        <th className="px-6 py-4 font-bold text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    <AnimatePresence>
+                                        {spotMedia
+                                            .filter(item =>
+                                                (item.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                ((item as any).userName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                                ((item as any).ktuId || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map((item) => (
+                                                <motion.tr
+                                                    key={item.id}
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="hover:bg-white/5 transition-colors group"
+                                                >
+                                                    <td className="px-6 py-4 text-white">
+                                                        <div className="size-16 relative overflow-hidden bg-black/40 border border-white/10 rounded-sm">
+                                                            <img
+                                                                src={item.url}
+                                                                alt={item.title}
+                                                                className="object-cover w-full h-full"
+                                                                onError={(e) => {
+                                                                    (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/ddx7vzskv/image/upload/v1/cld-sample-5';
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium text-white">{(item as any).userName || 'Anonymous'}</span>
+                                                            <span className="text-[10px] text-accent-gold uppercase tracking-tighter">{(item as any).ktuId} • {(item as any).house}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className="text-xs text-white/60">{item.title}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex justify-end gap-3">
+                                                            <button
+                                                                onClick={() => handleDownload(item.url, item.title)}
+                                                                className="text-white/20 hover:text-accent-gold transition-colors"
+                                                                title="Download Full Quality"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">download</span>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteSpotMedia(item.id)}
+                                                                className="text-white/20 hover:text-accent-red transition-colors"
+                                                                title="Delete Entry"
+                                                            >
+                                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))}
+                                        {spotMedia.length === 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-12 text-center text-white/40 italic">No spot photography entries yet.</td>
+                                            </tr>
+                                        )}
+                                    </AnimatePresence>
+                                </tbody>
+                            </table>
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* RESULTS VIEW */}
                 {activeTab === 'results' && (
                     <motion.div key="results-view" variants={fadeUp} initial="hidden" animate="show" exit="exit" className="flex flex-col gap-12">
@@ -1566,78 +1860,257 @@ export default function AdminDashboard() {
                                         Initialize Houses
                                     </button>
                                 )}
+                                {sportsHouses.length === 0 && (
+                                    <button
+                                        onClick={async () => {
+                                            setLoading(true);
+                                            try {
+                                                const housesToSeed = [
+                                                    { id: 'AGNI', name: 'AGNI', points: 0 },
+                                                    { id: 'ASTRA', name: 'ASTRA', points: 0 },
+                                                    { id: 'VAJRA', name: 'VAJRA', points: 0 },
+                                                    { id: 'RUDRA', name: 'RUDRA', points: 0 }
+                                                ];
+                                                for (const house of housesToSeed) {
+                                                    const { setDoc } = await import('firebase/firestore');
+                                                    await setDoc(doc(db, 'sports_houses', house.id), house);
+                                                }
+                                                alert("Sports Houses initialized successfully!");
+                                            } catch (error) {
+                                                console.error("Error seeding sports houses:", error);
+                                                alert("Failed to initialize sports houses.");
+                                            }
+                                            setLoading(false);
+                                        }}
+                                        className="h-10 px-4 bg-white/10 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all border border-white/20"
+                                    >
+                                        Init Sports
+                                    </button>
+                                )}
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                            {/* Scoring Rules */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                                    <span className="material-symbols-outlined text-accent-gold">settings_suggest</span>
-                                    <h2 className="text-xl font-display text-white uppercase tracking-widest">Point Rules</h2>
-                                </div>
-                                <div className="space-y-8">
-                                    {(['individual', 'group'] as const).map((type) => (
-                                        <div key={type} className="space-y-4">
-                                            <h3 className="text-xs font-bold text-white/40 uppercase tracking-[0.2em]">{type} Events</h3>
-                                            <div className="grid grid-cols-3 gap-4">
-                                                {(['first', 'second', 'third'] as const).map((place) => (
-                                                    <div key={place} className="space-y-1">
-                                                        <label className="text-[9px] text-white/30 uppercase tracking-widest font-bold">
-                                                            {place === 'first' ? '1st' : place === 'second' ? '2nd' : '3rd'}
-                                                        </label>
-                                                        <input
-                                                            type="number"
-                                                            value={scoringRules[type][place]}
-                                                            onChange={(e) => {
-                                                                const val = parseInt(e.target.value) || 0;
-                                                                const newRules = { ...scoringRules };
-                                                                newRules[type][place] = val;
-                                                                setScoringRules(newRules);
-                                                            }}
-                                                            onBlur={() => updateScoringRules(scoringRules)}
-                                                            className="w-full h-8 bg-[#181611] border border-white/10 px-3 text-xs text-white focus:border-accent-gold outline-none"
-                                                        />
+                        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                            {/* Configuration Column */}
+                            <div className="lg:col-span-1 space-y-6">
+                                {/* Quick Participant Search & House Assignment */}
+                                <div className="p-4 bg-accent-gold/5 border border-accent-gold/20 space-y-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="material-symbols-outlined text-accent-gold text-lg">person_search</span>
+                                        <h3 className="text-sm font-bold text-accent-gold uppercase tracking-widest">Quick House Assignment</h3>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Search participant name..."
+                                            value={quickSearchQuery}
+                                            onChange={(e) => setQuickSearchQuery(e.target.value)}
+                                            className="w-full h-8 bg-black/40 border border-white/10 px-3 text-[11px] text-white focus:border-accent-gold outline-none placeholder:text-white/20"
+                                        />
+                                        {quickSearchQuery.length >= 2 && (
+                                            <div className="max-h-80 overflow-y-auto custom-scrollbar border border-white/10 divide-y divide-white/5 bg-black/40">
+                                                {/* Existing Participants */}
+                                                {participants
+                                                    .filter(p => (p.name || '').toLowerCase().includes(quickSearchQuery.toLowerCase()))
+                                                    .slice(0, 10)
+                                                    .map(p => (
+                                                        <div key={p.id} className="p-2 space-y-1 bg-white/5">
+                                                            <div className="flex justify-between items-start text-[9px]">
+                                                                <span className="font-bold text-white truncate">{p.name}</span>
+                                                                <span className="text-white/40 uppercase">{p.universityCode || 'NO CODE'}</span>
+                                                            </div>
+                                                            <select 
+                                                                value={p.group}
+                                                                onChange={(e) => updateParticipantGroup(p.id, e.target.value)}
+                                                                className="w-full h-7 bg-accent-gold/10 border border-accent-gold/20 text-[9px] text-accent-gold outline-none cursor-pointer hover:bg-accent-gold/20 transition-colors px-1"
+                                                            >
+                                                                <option value="AGNI">AGNI</option>
+                                                                <option value="ASTRA">ASTRA</option>
+                                                                <option value="VAJRA">VAJRA</option>
+                                                                <option value="RUDRA">RUDRA</option>
+                                                                <option value="NONE">NONE</option>
+                                                            </select>
+                                                        </div>
+                                                    ))}
+
+                                                {/* Quick Add Option */}
+                                                <div className="p-3 bg-accent-gold/10 border-t border-accent-gold/20 space-y-2">
+                                                    <div className="flex items-center gap-2 text-[9px] text-accent-gold font-bold uppercase tracking-widest">
+                                                        <span className="material-symbols-outlined text-[12px]">person_add</span>
+                                                        Quick Add New
                                                     </div>
-                                                ))}
+                                                    <p className="text-[10px] text-white font-medium truncate">&quot;{quickSearchQuery}&quot;</p>
+                                                    <div className="flex gap-1">
+                                                        <select 
+                                                            value={quickAddHouse}
+                                                            onChange={(e) => setQuickAddHouse(e.target.value)}
+                                                            className="flex-1 h-7 bg-black/40 border border-white/10 text-[9px] text-white outline-none px-1"
+                                                        >
+                                                            <option value="AGNI">AGNI</option>
+                                                            <option value="ASTRA">ASTRA</option>
+                                                            <option value="VAJRA">VAJRA</option>
+                                                            <option value="RUDRA">RUDRA</option>
+                                                            <option value="NONE">NONE</option>
+                                                        </select>
+                                                        <button 
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await addDoc(collection(db, 'participants'), {
+                                                                        name: quickSearchQuery,
+                                                                        group: quickAddHouse,
+                                                                        universityCode: 'QUICK-ADD',
+                                                                        events: [],
+                                                                        timestamp: new Date().toISOString()
+                                                                    });
+                                                                    setQuickSearchQuery('');
+                                                                    setQuickAddHouse('NONE');
+                                                                } catch (err) {
+                                                                    console.error("Quick add failed:", err);
+                                                                }
+                                                            }}
+                                                            className="h-7 px-3 bg-accent-gold text-black text-[9px] font-bold uppercase transition-colors hover:bg-white"
+                                                        >
+                                                            Add
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Scoring Rules */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                                        <span className="material-symbols-outlined text-accent-gold">settings_suggest</span>
+                                        <h2 className="text-xl font-display text-white uppercase tracking-widest">Point Rules</h2>
+                                    </div>
+                                    <div className="space-y-8">
+                                        {(['individual', 'group'] as const).map((type) => (
+                                            <div key={type} className="space-y-4">
+                                                <h3 className="text-xs font-bold text-white/40 uppercase tracking-[0.2em]">{type} Events</h3>
+                                                <div className="grid grid-cols-3 gap-4">
+                                                    {(['first', 'second', 'third'] as const).map((place) => (
+                                                        <div key={place} className="space-y-1">
+                                                            <label className="text-[9px] text-white/30 uppercase tracking-widest font-bold">
+                                                                {place === 'first' ? '1st' : place === 'second' ? '2nd' : '3rd'}
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                value={scoringRules[type][place]}
+                                                                onChange={(e) => {
+                                                                    const val = parseInt(e.target.value) || 0;
+                                                                    const newRules = { ...scoringRules };
+                                                                    newRules[type][place] = val;
+                                                                    setScoringRules(newRules);
+                                                                }}
+                                                                onBlur={() => updateScoringRules(scoringRules)}
+                                                                className="w-full h-8 bg-[#181611] border border-white/10 px-3 text-xs text-white focus:border-accent-gold outline-none"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* House Standings */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                                    <span className="material-symbols-outlined text-accent-gold">leaderboard</span>
-                                    <h2 className="text-xl font-display text-white uppercase tracking-widest">House Standings</h2>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {houses.sort((a, b) => b.points - a.points).map((house) => (
-                                        <div key={house.id} className="p-4 bg-[#181611] border border-white/10 flex flex-col gap-3">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-sm font-bold text-white tracking-widest">{house.name}</span>
-                                                <span className="text-xs text-accent-gold font-mono">{house.points} PTS</span>
+                            {/* Standings Column */}
+                            <div className="lg:col-span-1 space-y-8">
+                                {/* Cultural House Standings */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                                        <span className="material-symbols-outlined text-accent-gold">leaderboard</span>
+                                        <h2 className="text-xl font-display text-white uppercase tracking-widest">Cultural Standings</h2>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {[...houses].sort((a, b) => b.points - a.points).map((house) => (
+                                            <div key={house.id} className="p-4 bg-[#181611] border border-white/10 flex flex-col gap-3">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-sm font-bold text-white tracking-widest">{house.name}</span>
+                                                    <span className="text-xs text-accent-gold font-mono">{house.points} PTS</span>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    value={house.points}
+                                                    onChange={(e) => {
+                                                        const val = parseInt(e.target.value) || 0;
+                                                        const newHouses = houses.map(h => h.id === house.id ? { ...h, points: val } : h);
+                                                        setHouses(newHouses);
+                                                    }}
+                                                    onBlur={(e) => updateHousePoints(house.id, parseInt(e.target.value) || 0)}
+                                                    className="w-full h-8 bg-black/40 border border-white/10 px-3 text-xs text-white focus:border-accent-gold outline-none"
+                                                    placeholder="Manual Update"
+                                                />
                                             </div>
-                                            <input
-                                                type="number"
-                                                value={house.points}
-                                                onChange={(e) => {
-                                                    const val = parseInt(e.target.value) || 0;
-                                                    const newHouses = houses.map(h => h.id === house.id ? { ...h, points: val } : h);
-                                                    setHouses(newHouses);
-                                                }}
-                                                onBlur={(e) => updateHousePoints(house.id, parseInt(e.target.value) || 0)}
-                                                className="w-full h-8 bg-black/40 border border-white/10 px-3 text-xs text-white focus:border-accent-gold outline-none"
-                                                placeholder="Manual Update"
-                                            />
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Sports House Standings */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                                        <span className="material-symbols-outlined text-accent-gold">directions_run</span>
+                                        <h2 className="text-xl font-display text-white uppercase tracking-widest">Sports Standings</h2>
+                                    </div>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {[...sportsHouses].sort((a, b) => b.points - a.points).map((house) => (
+                                            <div key={`sports-${house.id}`} className="p-4 bg-[#181611] border border-white/10 flex flex-col items-center justify-center gap-3 text-center">
+                                                <span className="text-sm font-bold text-white tracking-widest">{house.name}</span>
+                                                <input
+                                                    type="number"
+                                                    value={house.points}
+                                                    onChange={(e) => {
+                                                        const val = parseInt(e.target.value) || 0;
+                                                        const newHouses = sportsHouses.map(h => h.id === house.id ? { ...h, points: val } : h);
+                                                        setSportsHouses(newHouses);
+                                                    }}
+                                                    onBlur={(e) => updateSportsHousePoints(house.id, parseInt(e.target.value) || 0)}
+                                                    className="w-full h-12 bg-black/40 border-2 border-white/10 text-2xl font-display text-accent-gold text-center focus:border-accent-gold outline-none rounded-sm transition-colors"
+                                                    placeholder="0"
+                                                />
+                                                <span className="text-[9px] text-white/40 uppercase tracking-widest font-bold">Points</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Combined Standings Summary */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                                        <span className="material-symbols-outlined text-accent-gold">public</span>
+                                        <h2 className="text-xl font-display text-white uppercase tracking-widest">Combined Standings</h2>
+                                    </div>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {Array.from(
+                                            (() => {
+                                                const map = new Map<string, House>();
+                                                houses.forEach(h => {
+                                                    if (!h || !h.name) return;
+                                                    map.set(String(h.name).toLowerCase(), { ...h, points: Number(h.points) || 0 });
+                                                });
+                                                sportsHouses.forEach(sh => {
+                                                    if (!sh || !sh.name) return;
+                                                    const key = String(sh.name).toLowerCase();
+                                                    if (map.has(key)) map.get(key)!.points += (Number(sh.points) || 0);
+                                                    else map.set(key, { ...sh, name: String(sh.name).charAt(0).toUpperCase() + String(sh.name).slice(1).toLowerCase(), id: key, points: Number(sh.points) || 0 });
+                                                });
+                                                return map.values();
+                                            })()
+                                        ).sort((a, b) => b.points - a.points).map((house) => (
+                                            <div key={`combined-${house.id}`} className="p-4 bg-accent-gold/5 border border-accent-gold/20 flex flex-col items-center justify-center gap-2 text-center">
+                                                <span className="text-sm font-bold text-white tracking-widest">{house.name}</span>
+                                                <span className="text-3xl font-display text-accent-gold">{house.points}</span>
+                                                <span className="text-[9px] text-white/40 uppercase tracking-widest font-bold">Total</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
                             {/* Winners Management */}
-                            <div className="space-y-6">
+                            <div className="lg:col-span-2 space-y-6">
                                 <div className="flex items-center gap-3 border-b border-white/10 pb-4">
                                     <span className="material-symbols-outlined text-accent-gold">workspace_premium</span>
                                     <h2 className="text-xl font-display text-white uppercase tracking-widest">Event Winners</h2>
@@ -1661,32 +2134,126 @@ export default function AdminDashboard() {
                                                                         const p = participants.find(part => part.id === wid);
                                                                         return (
                                                                             <div key={wid} className="flex items-center justify-between bg-black/60 px-2 py-1 border border-accent-gold/20 rounded-sm">
-                                                                                <span className="text-[9px] text-white truncate max-w-[80px]">{p?.name || 'Unknown'}</span>
-                                                                                <button
-                                                                                    onClick={() => updateEventWinner(event.id, place, wid, true)}
-                                                                                    className="text-accent-red hover:text-white transition-colors"
-                                                                                >
-                                                                                    <span className="material-symbols-outlined text-[14px]">close</span>
-                                                                                </button>
+                                                                                <span className="text-[9px] text-white truncate max-w-[100px]">
+                                                                                    {p?.name || 'Unknown'}
+                                                                                    {p?.groupNo && <span className="text-accent-gold ml-1 text-[8px]">({p.groupNo})</span>}
+                                                                                </span>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <button
+                                                                                        onClick={() => handleEditParticipant(p as Participant)}
+                                                                                        className="text-white/30 hover:text-accent-gold transition-colors"
+                                                                                        title="Edit Details"
+                                                                                    >
+                                                                                        <span className="material-symbols-outlined text-[14px]">edit_note</span>
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => updateEventWinner(event.id, place, wid, true)}
+                                                                                        className="text-accent-red hover:text-white transition-colors"
+                                                                                    >
+                                                                                        <span className="material-symbols-outlined text-[14px]">close</span>
+                                                                                    </button>
+                                                                                </div>
                                                                             </div>
                                                                         );
                                                                     })}
-                                                                    <select
-                                                                        value=""
-                                                                        onChange={(e) => {
-                                                                            if (e.target.value) updateEventWinner(event.id, place, e.target.value);
-                                                                        }}
-                                                                        className="w-full h-8 bg-black/40 border border-white/10 px-2 text-[10px] text-white focus:border-accent-gold outline-none"
-                                                                    >
-                                                                        <option value="">Add Winner</option>
-                                                                        {eventParticipants
-                                                                            .filter(pic => !winnerIds.includes(pic.id))
-                                                                            .map(pic => (
-                                                                                <option key={pic.id} value={pic.id} className="bg-[#181611]">
-                                                                                    {pic.name} ({pic.group})
-                                                                                </option>
-                                                                            ))}
-                                                                    </select>
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={activeSearch?.eventId === event.id && activeSearch?.place === place ? winnerSearchQuery : ''}
+                                                                            placeholder="Search or select..."
+                                                                            onFocus={() => {
+                                                                                setActiveSearch({ eventId: event.id, place });
+                                                                                setWinnerSearchQuery('');
+                                                                            }}
+                                                                            onChange={(e) => setWinnerSearchQuery(e.target.value)}
+                                                                            className="w-full h-8 bg-black/40 border border-white/10 px-2 text-[10px] text-white focus:border-accent-gold outline-none placeholder:text-white/20"
+                                                                        />
+                                                                        {activeSearch?.eventId === event.id && activeSearch?.place === place && (
+                                                                            <motion.div
+                                                                                initial={{ opacity: 0, y: 5 }}
+                                                                                animate={{ opacity: 1, y: 0 }}
+                                                                                className="absolute z-50 top-full left-0 right-0 mt-1 bg-[#181611] border border-white/20 shadow-2xl max-h-40 overflow-y-auto custom-scrollbar"
+                                                                            >
+                                                                                {eventParticipants
+                                                                                    .filter(pic => !winnerIds.includes(pic.id))
+                                                                                    .filter(pic =>
+                                                                                        (pic.name || '').toLowerCase().includes(winnerSearchQuery.toLowerCase()) ||
+                                                                                        (pic.universityCode || '').toLowerCase().includes(winnerSearchQuery.toLowerCase()) ||
+                                                                                        (pic.groupNo || '').toLowerCase().includes(winnerSearchQuery.toLowerCase())
+                                                                                    )
+                                                                                    .map(pic => (
+                                                                                        <button
+                                                                                            key={pic.id}
+                                                                                            onClick={() => {
+                                                                                                updateEventWinner(event.id, place, pic.id);
+                                                                                                setActiveSearch(null);
+                                                                                                setWinnerSearchQuery('');
+                                                                                            }}
+                                                                                            className="w-full text-left px-3 py-2 text-[10px] hover:bg-accent-gold hover:text-black transition-colors border-b border-white/5 flex flex-col gap-0.5"
+                                                                                        >
+                                                                                            <span className="font-bold">{pic.name}</span>
+                                                                                            <span className="text-[8px] opacity-70">
+                                                                                                {pic.universityCode} {pic.groupNo ? `• G# ${pic.groupNo}` : `• ${pic.group}`}
+                                                                                            </span>
+                                                                                        </button>
+                                                                                    ))}
+                                                                                {eventParticipants.filter(pic => !winnerIds.includes(pic.id)).length === 0 && (
+                                                                                    <div className="px-3 py-4 text-center text-white/40 italic text-[9px]">No participants found.</div>
+                                                                                )}
+
+                                                                                {/* Quick Add Option inside Event Winner Dropdown */}
+                                                                                {winnerSearchQuery.length >= 2 && (
+                                                                                    <div className="p-2 bg-accent-gold/10 border-t border-accent-gold/20 space-y-1">
+                                                                                        <div className="text-[8px] text-accent-gold font-bold uppercase tracking-widest flex items-center gap-1 mb-1">
+                                                                                            <span className="material-symbols-outlined text-[10px]">person_add</span> Quick Add
+                                                                                        </div>
+                                                                                        <p className="text-[9px] text-white font-medium truncate mb-1">&quot;{winnerSearchQuery}&quot;</p>
+                                                                                        <div className="flex gap-1">
+                                                                                            <select 
+                                                                                                value={quickAddHouse}
+                                                                                                onChange={(e) => setQuickAddHouse(e.target.value)}
+                                                                                                className="flex-1 h-6 bg-black/40 border border-white/10 text-[8px] text-white outline-none px-1"
+                                                                                            >
+                                                                                                <option value="AGNI">AGNI</option>
+                                                                                                <option value="ASTRA">ASTRA</option>
+                                                                                                <option value="VAJRA">VAJRA</option>
+                                                                                                <option value="RUDRA">RUDRA</option>
+                                                                                                <option value="NONE">NONE</option>
+                                                                                            </select>
+                                                                                            <button 
+                                                                                                onClick={async (e) => {
+                                                                                                    e.preventDefault();
+                                                                                                    try {
+                                                                                                        // 1. Create the new participant
+                                                                                                        const newDocRef = await addDoc(collection(db, 'participants'), {
+                                                                                                            name: winnerSearchQuery,
+                                                                                                            group: quickAddHouse,
+                                                                                                            universityCode: 'QUICK-ADD',
+                                                                                                            events: [event.title], // Register them for this event automatically
+                                                                                                            timestamp: new Date().toISOString()
+                                                                                                        });
+                                                                                                        
+                                                                                                        // 2. Assign them as the winner
+                                                                                                        updateEventWinner(event.id, place, newDocRef.id);
+                                                                                                        
+                                                                                                        // 3. Reset state
+                                                                                                        setActiveSearch(null);
+                                                                                                        setWinnerSearchQuery('');
+                                                                                                        setQuickAddHouse('NONE');
+                                                                                                    } catch (err) {
+                                                                                                        console.error("Quick add winner failed:", err);
+                                                                                                    }
+                                                                                                }}
+                                                                                                className="h-6 px-2 bg-accent-gold text-black text-[8px] font-bold uppercase transition-colors hover:bg-white"
+                                                                                            >
+                                                                                                Assign
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )}
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         );
