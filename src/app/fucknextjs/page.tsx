@@ -826,6 +826,52 @@ export default function AdminDashboard() {
         }
     };
 
+    const exportWinnersToExcel = () => {
+        const rows: any[] = [];
+        events.forEach(event => {
+            if (!event.winners) return;
+            const places = ['first', 'second', 'third'] as const;
+            places.forEach(place => {
+                const rawW = event.winners?.[place];
+                if (!rawW) return;
+                const winnerIds = Array.isArray(rawW) ? rawW : [rawW];
+                winnerIds.forEach(wid => {
+                    const p = participants.find(part => part.id === wid);
+                    if (p) {
+                        const positionStr = place === 'first' ? '1st' : place === 'second' ? '2nd' : '3rd';
+                        const addRow = (name: string, univCode: string, groupOrHouse: string, gNo: string) => {
+                            rows.push({
+                                Event: event.title,
+                                Position: positionStr,
+                                'University Code': univCode,
+                                Name: name,
+                                Group: gNo !== 'N/A' && gNo ? gNo : groupOrHouse
+                            });
+                        };
+                        
+                        addRow(p.name, p.universityCode, p.group || 'NONE', p.groupNo || 'N/A');
+                        
+                        if (p.members && Array.isArray(p.members)) {
+                            p.members.forEach((m: any) => {
+                                addRow(m.name || 'Unknown', m.universityCode || '', p.group || 'NONE', p.groupNo || 'N/A');
+                            });
+                        }
+                    }
+                });
+            });
+        });
+        
+        if (rows.length === 0) {
+            alert("No winners to export.");
+            return;
+        }
+
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Winners");
+        XLSX.writeFile(workbook, "dextra_event_winners.xlsx");
+    };
+
     // --- Excel Bulk Upload ---
     interface ExcelRow {
         Title?: string;
@@ -2111,9 +2157,18 @@ export default function AdminDashboard() {
 
                             {/* Winners Management */}
                             <div className="lg:col-span-2 space-y-6">
-                                <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                                    <span className="material-symbols-outlined text-accent-gold">workspace_premium</span>
-                                    <h2 className="text-xl font-display text-white uppercase tracking-widest">Event Winners</h2>
+                                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                                    <div className="flex items-center gap-3">
+                                        <span className="material-symbols-outlined text-accent-gold">workspace_premium</span>
+                                        <h2 className="text-xl font-display text-white uppercase tracking-widest">Event Winners</h2>
+                                    </div>
+                                    <button
+                                        onClick={exportWinnersToExcel}
+                                        className="h-8 px-4 bg-accent-gold text-black font-bold text-[10px] uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2 rounded-sm"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">download</span>
+                                        Export
+                                    </button>
                                 </div>
                                 <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
                                     {events.sort((a, b) => a.title.localeCompare(b.title)).map((event) => {
