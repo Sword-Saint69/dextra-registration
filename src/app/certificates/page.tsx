@@ -85,17 +85,28 @@ export default function CertificateSearch() {
         try {
             const col = collection(certDb, 'certificate');
 
+            // Handle potential trailing spaces and case sensitivity in Firestore data
+            const searchVariations = Array.from(new Set([
+                trimmed,
+                trimmed + ' ',
+                trimmed.toUpperCase(),
+                trimmed.toUpperCase() + ' ',
+                trimmed.toLowerCase(),
+                trimmed.toLowerCase() + ' '
+            ]));
+
             // Query both fields and merge (a person can match on either ID)
-            const [snap1, snap2] = await Promise.all([
-                getDocs(query(col, where('SEARCH ID 1', '==', trimmed))),
-                getDocs(query(col, where('SEARCH ID 2', '==', trimmed))),
+            const [snap1, snap2, snap3] = await Promise.all([
+                getDocs(query(col, where('SEARCH ID 1', 'in', searchVariations))),
+                getDocs(query(col, where('SEARCH ID 2', 'in', searchVariations))),
+                getDocs(query(col, where('KTU ID', 'in', searchVariations))),
             ]);
 
             // Merge results, de-duplicate by doc ID
             const seen = new Set<string>();
             const merged: CertificateData[] = [];
 
-            for (const snap of [snap1, snap2]) {
+            for (const snap of [snap1, snap2, snap3]) {
                 for (const cert of parseDocs(snap)) {
                     if (!seen.has(cert.id)) {
                         seen.add(cert.id);
