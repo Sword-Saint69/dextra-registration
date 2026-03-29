@@ -83,7 +83,8 @@ export default function CertificateSearch() {
         setSearched(false);
 
         try {
-            const col = collection(certDb, 'certificate');
+            const col1 = collection(certDb, 'certificate');
+            const col2 = collection(certDb, 'certificates');
 
             // Handle potential trailing spaces and case sensitivity in Firestore data
             const searchVariations = Array.from(new Set([
@@ -95,18 +96,23 @@ export default function CertificateSearch() {
                 trimmed.toLowerCase() + ' '
             ]));
 
-            // Query both fields and merge (a person can match on either ID)
-            const [snap1, snap2, snap3] = await Promise.all([
-                getDocs(query(col, where('SEARCH ID 1', 'in', searchVariations))),
-                getDocs(query(col, where('SEARCH ID 2', 'in', searchVariations))),
-                getDocs(query(col, where('KTU ID', 'in', searchVariations))),
-            ]);
+            // Query both collections and all relevant fields
+            const queries = [
+                getDocs(query(col1, where('SEARCH ID 1', 'in', searchVariations))),
+                getDocs(query(col1, where('SEARCH ID 2', 'in', searchVariations))),
+                getDocs(query(col1, where('KTU ID', 'in', searchVariations))),
+                getDocs(query(col2, where('SEARCH ID 1', 'in', searchVariations))),
+                getDocs(query(col2, where('SEARCH ID 2', 'in', searchVariations))),
+                getDocs(query(col2, where('KTU ID', 'in', searchVariations))),
+            ];
+
+            const snaps = await Promise.all(queries);
 
             // Merge results, de-duplicate by doc ID
             const seen = new Set<string>();
             const merged: CertificateData[] = [];
 
-            for (const snap of [snap1, snap2, snap3]) {
+            for (const snap of snaps) {
                 for (const cert of parseDocs(snap)) {
                     if (!seen.has(cert.id)) {
                         seen.add(cert.id);
